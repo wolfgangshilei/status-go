@@ -22,6 +22,7 @@ import (
 	"github.com/status-im/status-go/sign"
 	"github.com/status-im/status-go/signal"
 	"github.com/status-im/status-go/transactions"
+	"github.com/status-im/status-go/x3dh"
 )
 
 const (
@@ -442,4 +443,20 @@ func appendIf(condition bool, services []gethnode.ServiceConstructor, service ge
 		return services
 	}
 	return append(services, service)
+}
+
+func (b *StatusBackend) CreateBundle() (string, error) {
+  selectedAccount, err := b.AccountManager().SelectedAccount()
+  if selectedAccount == nil || err == account.ErrNoAccountSelected {
+    return "", nil
+  }
+
+  bundle, _, err := x3dh.NewBundle(selectedAccount.AccountKey.PrivateKey)
+  if err != nil {
+    return "", err
+  }
+
+  jsonBundle, err := bundle.ToJSON()
+
+  return jsonBundle, err
 }
