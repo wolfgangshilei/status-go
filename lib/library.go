@@ -64,15 +64,15 @@ func StopNode() *C.char {
 // Create an X3DH bundle
 //export CreateX3DHBundle
 func CreateX3DHBundle() *C.char {
-  bundle, err := statusBackend.CreateX3DHBundle();
-  if err != nil {
-    return makeJSONResponse(err)
-  }
+	bundle, err := statusBackend.CreateX3DHBundle()
+	if err != nil {
+		return makeJSONResponse(err)
+	}
 
-  cstr := C.CString(bundle)
+	cstr := C.CString(bundle)
 
-  //defer C.free(unsafe.Pointer(cstr))
-  return cstr
+	//defer C.free(unsafe.Pointer(cstr))
+	return cstr
 }
 
 //ValidateNodeConfig validates config for status node
