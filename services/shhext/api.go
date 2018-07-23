@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
+	"github.com/status-im/status-go/services/shhext/chat"
 )
 
 const (
@@ -193,6 +194,22 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 // the client side.
 func (api *PublicAPI) ConfirmMessagesProcessed(messages []*whisper.Message) error {
 	return api.service.deduplicator.AddMessages(messages)
+}
+
+func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.DirectMessageRPC) (hash hexutil.Bytes, err error) {
+  // Check dst is there
+  // Check bundle_id and bundle is there
+  // Check sym_key_id is there
+  // Encrypt OneToOnePayload
+  // Send through whisper
+
+  api.log.Info("SendOneToOneMessage", "request", msg)
+  whisperMessage, err := chat.DirectMessageToWhisper(&msg)
+  if err != nil {
+    return nil, err
+  }
+
+  return api.Post(ctx, *whisperMessage)
 }
 
 // -----
