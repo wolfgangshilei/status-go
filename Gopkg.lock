@@ -217,14 +217,17 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:cc9139958eb44c66d156bc76bde34a8202c6a4b837cc569299d916fa2f9290d5"
+  digest = "1:54f085430edd764a4900b1599315e3aef6e42b06e2c8b96a09602716ef171f3a"
   name = "github.com/golang/protobuf"
   packages = [
+    "jsonpb",
     "proto",
     "protoc-gen-go/descriptor",
+    "ptypes/struct",
   ]
   pruneopts = "NUT"
-  revision = "748d386b5c1ea99658fd69fe9f03991ce86a90c1"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   digest = "1:9413ddbde906f91f062fda0dfa9a7cff43458cd1b2282c0fa25c61d89300b116"
@@ -1036,10 +1039,12 @@
     "github.com/ethereum/go-ethereum/core",
     "github.com/ethereum/go-ethereum/core/types",
     "github.com/ethereum/go-ethereum/crypto",
+    "github.com/ethereum/go-ethereum/crypto/ecies",
     "github.com/ethereum/go-ethereum/crypto/sha3",
     "github.com/ethereum/go-ethereum/eth",
     "github.com/ethereum/go-ethereum/eth/downloader",
     "github.com/ethereum/go-ethereum/event",
+    "github.com/ethereum/go-ethereum/internal/ethapi",
     "github.com/ethereum/go-ethereum/les",
     "github.com/ethereum/go-ethereum/log",
     "github.com/ethereum/go-ethereum/metrics",
@@ -1056,6 +1061,8 @@
     "github.com/golang/mock/gomock",
     "github.com/libp2p/go-libp2p-crypto",
     "github.com/multiformats/go-multiaddr",
+    "github.com/golang/protobuf/jsonpb",
+    "github.com/golang/protobuf/proto",
     "github.com/pborman/uuid",
     "github.com/status-im/rendezvous",
     "github.com/status-im/rendezvous/server",

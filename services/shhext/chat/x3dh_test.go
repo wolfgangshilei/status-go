@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/stretchr/testify/assert"
-	"github.com/golang/protobuf/jsonpb"
 )
 
 const (
@@ -78,19 +77,6 @@ func TestNewBundleContainer(t *testing.T) {
 }
 
 func TestToJSON(t *testing.T) {
-	ma := jsonpb.Marshaler{}
-        payload := DirectMessageRPC_OneToOnePayload{OneToOnePayload: &OneToOnePayload{Content: "abc"}}
-        message := DirectMessageRPC{Dst: []byte("atha"), MessageType: &payload}
-        jsonMessage, err := ma.MarshalToString(&message)
-        a := &DirectMessageRPC{}
-	_ = jsonpb.UnmarshalString(jsonMessage, a)
-
-        t.Logf("%s\n %s\n", jsonMessage, a )
-
-        assert.Nil(t, a, "thst")
-
-        assert.Nil(t, jsonMessage, "thst")
-
 	privateKey, err := crypto.ToECDSA([]byte(alicePrivateKey))
 	assert.Nil(t, err, "Key should be generated without errors")
 

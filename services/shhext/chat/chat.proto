@@ -38,7 +38,7 @@ message DirectMessageRPC {
   }
 
   // Eventually removed if we persist bundles in status-go
-  one_of {
+  oneof encryption_info {
     // Are we using an x3dh bundle?
     string bundle_id = 1000;
     // Or we already have a sym-key for this session
