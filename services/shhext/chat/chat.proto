@@ -29,13 +29,15 @@ message ContactUpdatePayload {
 }
 
 message OneToOneRPC {
-  string dst = 1;
-  OneToOnePayload payload = 2;
+  string src = 1;
+  string dst = 2;
+  OneToOnePayload payload = 3;
 }
 
 message ContactUpdateRPC {
-  string dst = 1;
-  ContactUpdatePayload payload = 2;
+  string src = 1;
+  string dst = 2;
+  ContactUpdatePayload payload = 3;
 }
 
 // Sent among peers

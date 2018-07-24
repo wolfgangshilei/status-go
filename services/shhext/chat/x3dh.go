@@ -140,14 +140,21 @@ func x3dhPassive(
 	return getSharedSecret(dh1, dh2, dh3), nil
 }
 
-func PerformActiveDH(publicKey *ecdsa.PublicKey) ([]byte, error) {
+func PerformActiveDH(publicKey *ecdsa.PublicKey) ([]byte, *ecdsa.PublicKey, error) {
 	ephemeralKey, err := crypto.GenerateKey()
-        if err != nil {
-          return nil, err
-        }
-        return performDH(
-          ecies.ImportECDSA(ephemeralKey),
-          ecies.ImportECDSAPublic(publicKey))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	key, err := performDH(
+		ecies.ImportECDSA(ephemeralKey),
+		ecies.ImportECDSAPublic(publicKey),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return key, &ephemeralKey.PublicKey, err
 }
 
 // Take someone elses' bundle, calculate shared secret.
