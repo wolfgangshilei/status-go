@@ -28,22 +28,14 @@ message ContactUpdatePayload {
   string fcm_token = 4;
 }
 
-// Sent to the RPC
-message DirectMessageRPC {
-  bytes dst = 1;
+message OneToOneRPC {
+  string dst = 1;
+  OneToOnePayload payload = 2;
+}
 
-  oneof message_type {
-    OneToOnePayload one_to_one_payload = 101;
-    ContactUpdatePayload contact_update_payload = 102;
-  }
-
-  // Eventually removed if we persist bundles in status-go
-  oneof encryption_info {
-    // Are we using an x3dh bundle?
-    string bundle_id = 1000;
-    // Or we already have a sym-key for this session
-    string sym_key_id = 1001;
-  }
+message ContactUpdateRPC {
+  string dst = 1;
+  ContactUpdatePayload payload = 2;
 }
 
 // Sent among peers
@@ -52,17 +44,10 @@ message DirectMessageProtocol {
   bytes ephemeral_key = 1;
   // Bundle pre key in case of x3dh
   bytes bundle_pre_key = 2;
-  oneof message_type {
+  oneof payload {
     // Encrypted payloads
     bytes one_to_one_payload = 101;
     bytes contact_update_payload = 102;
-  }
-}
-
-// Message sent to RPC
-message RPCMessage {
-  oneof message_type {
-    DirectMessageRPC direct_message_rpc = 1;
   }
 }
 

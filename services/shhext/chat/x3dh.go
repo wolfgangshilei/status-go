@@ -140,9 +140,19 @@ func x3dhPassive(
 	return getSharedSecret(dh1, dh2, dh3), nil
 }
 
+func PerformActiveDH(publicKey *ecdsa.PublicKey) ([]byte, error) {
+	ephemeralKey, err := crypto.GenerateKey()
+        if err != nil {
+          return nil, err
+        }
+        return performDH(
+          ecies.ImportECDSA(ephemeralKey),
+          ecies.ImportECDSAPublic(publicKey))
+}
+
 // Take someone elses' bundle, calculate shared secret.
 // returns the shared secret and the ephemeral key used.
-func PerformActiveX3DH(bundle *Bundle, prv *ecdsa.PrivateKey) ([]byte, *ecdsa.PrivateKey, error) {
+func PerformActiveX3DH(bundle *Bundle, prv *ecdsa.PrivateKey) ([]byte, *ecdsa.PublicKey, error) {
 
 	bundleIdentityKey, err := crypto.DecompressPubkey(bundle.GetIdentity())
 	if err != nil {
@@ -175,7 +185,7 @@ func PerformActiveX3DH(bundle *Bundle, prv *ecdsa.PrivateKey) ([]byte, *ecdsa.Pr
 		return nil, nil, err
 	}
 
-	return sharedSecret, ephemeralKey, nil
+	return sharedSecret, &ephemeralKey.PublicKey, nil
 }
 
 // They used our bundle, with ID of the signedPreKey, we loaded our identity key and

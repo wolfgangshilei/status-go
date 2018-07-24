@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+        "github.com/golang/protobuf/proto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
@@ -115,6 +116,7 @@ func NewPublicAPI(s *Service) *PublicAPI {
 
 // Post shamelessly copied from whisper codebase with slight modifications.
 func (api *PublicAPI) Post(ctx context.Context, req whisper.NewMessage) (hash hexutil.Bytes, err error) {
+	api.log.Info("Post", "request", req)
 	hash, err = api.publicAPI.Post(ctx, req)
 	if err == nil {
 		var envHash common.Hash
@@ -187,7 +189,13 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 	if err != nil {
 		return nil, err
 	}
-	return api.service.deduplicator.Deduplicate(msgs), err
+
+        dedupMessages := api.service.deduplicator.Deduplicate(msgs)
+        if err != nil {
+          return nil, err
+        }
+
+        return dedupMessages, nil
 }
 
 // ConfirmMessagesProcessed is a method to confirm that messages was consumed by
@@ -196,7 +204,7 @@ func (api *PublicAPI) ConfirmMessagesProcessed(messages []*whisper.Message) erro
 	return api.service.deduplicator.AddMessages(messages)
 }
 
-func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.DirectMessageRPC) (hash hexutil.Bytes, err error) {
+func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOneRPC) (hash hexutil.Bytes, err error) {
   // Check dst is there
   // Check bundle_id and bundle is there
   // Check sym_key_id is there
@@ -204,10 +212,36 @@ func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.DirectMe
   // Send through whisper
 
   api.log.Info("SendOneToOneMessage", "request", msg)
-  whisperMessage, err := chat.DirectMessageToWhisper(&msg)
+
+  marshaledPayload, err := proto.Marshal(msg.Payload)
+
+  encryptedPayload, publicKey, err := api.service.encryption.EncryptPayload([]byte(msg.Dst), marshaledPayload)
+
+  bundle, err := api.service.encryption.GetBundle()
   if err != nil {
     return nil, err
   }
+
+  protocolMessage := &chat.ProtocolMessage {
+    Bundle: bundle.GetBundle(),
+    MessageType: &chat.ProtocolMessage_DirectMessage {
+      DirectMessage: &chat.DirectMessageProtocol {
+        Payload: encryptedPayload,
+      },
+    },
+  }
+
+  marshaledMessage, err := proto.Marshal(protocolMessage)
+  if err != nil {
+    return nil, err
+  }
+
+  whisperMessage, err := chat.DirectMessageToWhisper(&msg, marshaledMessage)
+  if err != nil {
+    return nil, err
+  }
+
+  api.log.Info("SendOneToOneMessage", "whisper", whisperMessage)
 
   return api.Post(ctx, *whisperMessage)
 }
