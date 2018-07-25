@@ -5,7 +5,6 @@ import (
 
 	"crypto/ecdsa"
 
-	"encoding/hex"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/golang/protobuf/jsonpb"
@@ -41,10 +40,7 @@ func NewBundleContainer(identity *ecdsa.PrivateKey) (*BundleContainer, error) {
 		return nil, err
 	}
 
-	encodedPreKey := []byte(hex.EncodeToString(crypto.FromECDSA(preKey)))
-	if err != nil {
-		return nil, err
-	}
+	encodedPreKey := crypto.FromECDSA(preKey)
 
 	bundle := Bundle{
 		Identity:     compressedIdentityKey,
@@ -76,7 +72,7 @@ func verifyBundle(bundle *Bundle, bundleIdentityKey *ecdsa.PublicKey) error {
 	return nil
 }
 
-func performDH(privateKey *ecies.PrivateKey, publicKey *ecies.PublicKey) ([]byte, error) {
+func PerformDH(privateKey *ecies.PrivateKey, publicKey *ecies.PublicKey) ([]byte, error) {
 	return privateKey.GenerateShared(
 		publicKey,
 		sskLen,
@@ -97,17 +93,17 @@ func x3dhActive(
 	myEphemeralKey *ecies.PrivateKey,
 	theirIdentityKey *ecies.PublicKey,
 ) ([]byte, error) {
-	dh1, err := performDH(myIdentityKey, theirSignedPreKey)
+	dh1, err := PerformDH(myIdentityKey, theirSignedPreKey)
 	if err != nil {
 		return nil, err
 	}
 
-	dh2, err := performDH(myEphemeralKey, theirIdentityKey)
+	dh2, err := PerformDH(myEphemeralKey, theirIdentityKey)
 	if err != nil {
 		return nil, err
 	}
 
-	dh3, err := performDH(myEphemeralKey, theirSignedPreKey)
+	dh3, err := PerformDH(myEphemeralKey, theirSignedPreKey)
 	if err != nil {
 		return nil, err
 	}
@@ -122,17 +118,17 @@ func x3dhPassive(
 	theirEphemeralKey *ecies.PublicKey,
 	myIdentityKey *ecies.PrivateKey,
 ) ([]byte, error) {
-	dh1, err := performDH(mySignedPreKey, theirIdentityKey)
+	dh1, err := PerformDH(mySignedPreKey, theirIdentityKey)
 	if err != nil {
 		return nil, err
 	}
 
-	dh2, err := performDH(myIdentityKey, theirEphemeralKey)
+	dh2, err := PerformDH(myIdentityKey, theirEphemeralKey)
 	if err != nil {
 		return nil, err
 	}
 
-	dh3, err := performDH(mySignedPreKey, theirEphemeralKey)
+	dh3, err := PerformDH(mySignedPreKey, theirEphemeralKey)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +142,7 @@ func PerformActiveDH(publicKey *ecdsa.PublicKey) ([]byte, *ecdsa.PublicKey, erro
 		return nil, nil, err
 	}
 
-	key, err := performDH(
+	key, err := PerformDH(
 		ecies.ImportECDSA(ephemeralKey),
 		ecies.ImportECDSAPublic(publicKey),
 	)
@@ -166,7 +162,7 @@ func PerformActiveX3DH(bundle *Bundle, prv *ecdsa.PrivateKey) ([]byte, *ecdsa.Pu
 		return nil, nil, err
 	}
 
-	bundleSignedPreKey, err := crypto.DecompressPubkey(bundle.GetIdentity())
+	bundleSignedPreKey, err := crypto.DecompressPubkey(bundle.GetSignedPreKey())
 	if err != nil {
 		return nil, nil, err
 	}

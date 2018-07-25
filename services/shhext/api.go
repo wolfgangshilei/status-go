@@ -205,18 +205,27 @@ func (api *PublicAPI) ConfirmMessagesProcessed(messages []*whisper.Message) erro
 	return api.service.deduplicator.AddMessages(messages)
 }
 
+func parsePublicKey(pk []byte) (*ecdsa.PublicKey, error) {
+	pkBytes := hexutil.Bytes{}
+	err := pkBytes.UnmarshalText(pk)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, err := crypto.UnmarshalPubkey(pkBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, err
+}
+
 func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOneRPC) (hexutil.Bytes, error) {
 	// Check dst is there
 	// Check bundle_id and bundle is there
 	// Check sym_key_id is there
 	// Encrypt OneToOnePayload
 	// Send through whisper
-
-	publicKey := hexutil.Bytes{}
-	err := publicKey.UnmarshalText([]byte(msg.Dst))
-	if err != nil {
-		return nil, err
-	}
 
 	api.log.Info("SendOneToOneMessage", "request", msg)
 	var compressedKey []byte
@@ -226,6 +235,11 @@ func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOne
 	if err != nil {
 		return nil, err
 	}
+	publicKey, err := parsePublicKey([]byte(msg.GetDst()))
+	if err != nil {
+		return nil, err
+	}
+
 	api.log.Info("SendOneToOneMessage", "GotPrivatekey", privateKey)
 
 	marshaledPayload, err := proto.Marshal(msg.Payload)

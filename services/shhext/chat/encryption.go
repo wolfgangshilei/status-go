@@ -2,11 +2,14 @@ package chat
 
 import (
 	"crypto/ecdsa"
+	"errors"
 
 	ecrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb"
+	lerrors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/util"
 
 	"github.com/status-im/status-go/crypto"
@@ -15,6 +18,8 @@ import (
 var publicKeyPrefix = []byte{0x10, 0x11}
 var privateBundleKeyPrefix = []byte{0x10, 0x12}
 var symmetricKeyKeyPrefix = []byte{0x10, 0x13}
+
+var KeyNotFoundError = errors.New("Key not found")
 
 type EncryptionService struct {
 	log log.Logger
@@ -56,7 +61,7 @@ func (s *EncryptionService) AddPublicBundle(b *Bundle) error {
 }
 
 // Return the only bundle for now
-func (s *EncryptionService) GetPrivateBundle() (*Bundle, error) {
+func (s *EncryptionService) GetAnyPrivateBundle() (*Bundle, error) {
 	var bundleContainer *BundleContainer
 	iter := s.db.NewIterator(util.BytesPrefix(privateBundleKeyPrefix), nil)
 
@@ -87,18 +92,47 @@ func (s *EncryptionService) AddPrivateBundle(b *BundleContainer) error {
 	return nil
 }
 
-func (s *EncryptionService) GetSymmetricKey(pk []byte) ([]byte, error) {
-	return s.db.Get(symmetricKeyKey(pk), nil)
+func (s *EncryptionService) GetPrivateBundle(bundleId []byte) (*BundleContainer, error) {
+	byteBundle, err := s.db.Get(append(privateBundleKeyPrefix, bundleId...), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	bundleContainer := BundleContainer{}
+
+	err = proto.Unmarshal(byteBundle, &bundleContainer)
+
+	return &bundleContainer, err
 }
 
-func (s *EncryptionService) PutSymmetricKey(pk []byte, key []byte) error {
-	return s.db.Put(symmetricKeyKey(pk), key, nil)
+// Pick any established key, any key, and return the ephemeral key used
+func (s *EncryptionService) GetAnySymmetricKey(pk []byte) ([]byte, *ecdsa.PublicKey, error) {
+	iter := s.db.NewIterator(util.BytesPrefix(append(symmetricKeyKeyPrefix, pk...)), nil)
+	for iter.Next() {
+		key := iter.Key()[len(symmetricKeyKeyPrefix)+len(pk):]
+		ephemeralKey, err := ecrypto.DecompressPubkey(key)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		value := iter.Value()
+		iter.Release()
+		return value, ephemeralKey, nil
+	}
+	return nil, nil, nil
+}
+
+func (s *EncryptionService) PutSymmetricKey(dst []byte, id []byte, key []byte) error {
+	return s.db.Put(symmetricKeyKey(append(dst, id...)), key, nil)
 }
 
 func (s *EncryptionService) GetPublicBundle(pk []byte) (*Bundle, error) {
-	s.log.Info("bytebundle x3dh")
 	byteBundle, err := s.db.Get(publicBundleKey(pk), nil)
-	s.log.Info("bytebundle Get", byteBundle, err)
+
+	if err != nil && err != lerrors.ErrNotFound {
+		return nil, err
+	}
+
 	if byteBundle == nil {
 		return nil, nil
 	}
@@ -114,18 +148,16 @@ func (s *EncryptionService) GetPublicBundle(pk []byte) (*Bundle, error) {
 }
 
 func (s *EncryptionService) keyFromX3DH(pk []byte, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, *ecdsa.PublicKey, error) {
-	s.log.Info("getting public bundle")
-	bundle, _ := s.GetPublicBundle(pk)
+	bundle, err := s.GetPublicBundle(pk)
 
-	//if err != nil {
-	//		return nil, nil, err
-	//	}
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if bundle == nil {
 		return nil, nil, nil
 	}
 
-	s.log.Info("performing x3dh")
 	return PerformActiveX3DH(bundle, privateKey)
 }
 
@@ -134,8 +166,8 @@ func (s *EncryptionService) keyFromDH(pk *ecdsa.PublicKey, privateKey *ecdsa.Pri
 	return PerformActiveDH(pk)
 }
 
-func (s *EncryptionService) GetBundle(privateKey *ecdsa.PrivateKey) (*Bundle, error) {
-	bundle, err := s.GetPrivateBundle()
+func (s *EncryptionService) CreateBundle(privateKey *ecdsa.PrivateKey) (*Bundle, error) {
+	bundle, err := s.GetAnyPrivateBundle()
 	if err != nil {
 		return nil, err
 	}
@@ -157,38 +189,113 @@ func (s *EncryptionService) GetBundle(privateKey *ecdsa.PrivateKey) (*Bundle, er
 	return bundleContainer.GetBundle(), nil
 }
 
-func (s *EncryptionService) EncryptPayload(pk []byte, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, *ecdsa.PublicKey, error) {
+func (s *EncryptionService) DecryptSymmetricPayload(src *ecdsa.PublicKey, bundleId []byte, payload []byte) ([]byte, error) {
+	compressedSrc := ecrypto.CompressPubkey(src)
+
+	symmetricKey, _, err := s.GetAnySymmetricKey(compressedSrc)
+
+	if symmetricKey == nil {
+		return nil, KeyNotFoundError
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.DecryptSymmetric(symmetricKey, payload)
+
+}
+
+// Decrypt message sent with a DH key exchange, throw away the key after decryption
+func (s *EncryptionService) DecryptWithDH(myIdentityKey *ecdsa.PrivateKey, theirEphemeralKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
+	key, err := PerformDH(
+		ecies.ImportECDSA(myIdentityKey),
+		ecies.ImportECDSAPublic(theirEphemeralKey),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.DecryptSymmetric(key, payload)
+
+}
+
+// Decrypt message sent with a X3DH key exchange, store the key for future exchanges
+func (s *EncryptionService) DecryptWithX3DH(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, theirEphemeralKey *ecdsa.PublicKey, ourBundleId []byte, payload []byte) ([]byte, error) {
+	myBundle, err := s.GetPrivateBundle(ourBundleId)
+	if err != nil {
+		return nil, err
+	}
+
+	signedPreKey, err := ecrypto.ToECDSA(myBundle.GetPrivateSignedPreKey())
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := PerformPassiveX3DH(
+		theirIdentityKey,
+		signedPreKey,
+		theirEphemeralKey,
+		myIdentityKey,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// We encrypt the payload
+	encryptedPayload, err := crypto.DecryptSymmetric(key, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// And we store the key for later use
+	err = s.PutSymmetricKey(
+		ecrypto.CompressPubkey(theirIdentityKey),
+		ecrypto.CompressPubkey(theirEphemeralKey),
+		key)
+
+	if err != nil {
+		return nil, err
+	}
+	return encryptedPayload, nil
+}
+
+func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, *ecdsa.PublicKey, error) {
 	var symmetricKey []byte
 	var ephemeralKey *ecdsa.PublicKey
+	var compressedDst = ecrypto.CompressPubkey(dst)
+	var err error
+
 	// This should be in a transaction or similar
 
-	s.log.Info("Unmarshaling pubkey")
-	publicKey, err := ecrypto.UnmarshalPubkey(pk)
+	s.log.Info("Getting  symmetric")
+	// Check if we have already a key established
+	symmetricKey, ephemeralKey, err = s.GetAnySymmetricKey(compressedDst)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	s.log.Info("Getting  symmetric")
-	// Check if we have already a key
-	symmetricKey, _ = s.GetSymmetricKey(pk)
-	//if err != nil {
-	//	return nil, nil, err
-	//}
 
 	s.log.Info("Trying  x3dh")
 	// If not there try with a bundle
 	if symmetricKey == nil {
-		s.log.Info("executing  x3dh")
-		symmetricKey, ephemeralKey, err = s.keyFromX3DH(pk, privateKey, payload)
+		symmetricKey, ephemeralKey, err = s.keyFromX3DH(compressedDst, privateKey, payload)
 	}
 	if err != nil {
 		return nil, nil, err
 	}
 
-	s.log.Info("Trying  DH")
+	// keys from DH should not be re-used, so we don't store them
 	if symmetricKey == nil {
 		s.log.Info("executing  DH")
-		symmetricKey, ephemeralKey, err = s.keyFromDH(publicKey, privateKey, payload)
+		symmetricKey, ephemeralKey, err := s.keyFromDH(dst, privateKey, payload)
+		if err != nil {
+			return nil, nil, err
+		}
+		encryptedPayload, err := crypto.EncryptSymmetric(symmetricKey, payload)
+		if err != nil {
+			return nil, nil, err
+		}
+		return encryptedPayload, ephemeralKey, nil
 	}
 	if err != nil {
 		return nil, nil, err
@@ -204,7 +311,8 @@ func (s *EncryptionService) EncryptPayload(pk []byte, privateKey *ecdsa.PrivateK
 	s.log.Info("Storing  symmetric key")
 	// If we just generated the key, we save it
 	if ephemeralKey != nil {
-		err = s.PutSymmetricKey(pk, symmetricKey)
+		compressedEphemeral := ecrypto.CompressPubkey(ephemeralKey)
+		err = s.PutSymmetricKey(compressedDst, compressedEphemeral, symmetricKey)
 		if err != nil {
 			return nil, nil, err
 		}
