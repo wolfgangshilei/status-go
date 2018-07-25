@@ -50,16 +50,22 @@ func (s *EncryptionServiceTestSuite) TearDownTest() {
 // and Bob's identity key.
 // Bob is able to decrypt it.
 // Alice does not re-use the symmetric key
-func (s *EncryptionServiceTestSuite) testEncryptPayloadNoBundle() {
+func (s *EncryptionServiceTestSuite) TestEncryptPayloadNoBundle() {
 	bobKey, err := crypto.GenerateKey()
 	s.NoError(err)
 	aliceKey, err := crypto.GenerateKey()
 	s.NoError(err)
 
-	cyphertext1, ephemeralKey1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	encryptionResponse1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	s.NoError(err)
+
+	cyphertext1 := encryptionResponse1.EncryptedPayload
+	ephemeralKey1 := encryptionResponse1.EphemeralKey
+
 	s.NotNil(ephemeralKey1, "It generates an ephemeral key for DH exchange")
 	s.NotNil(cyphertext1, "It generates an encrypted payload")
 	s.NotEqualf(cyphertext1, cleartext, "It encrypts the payload correctly")
+	s.Equalf(encryptionResponse1.EncryptionType, EncryptionTypeDH, "It sets the encryption type to DH")
 
 	// On the receiver side, we should be able to decrypt using our private key and the ephemeral just sent
 	decryptedPayload1, err := s.bob.DecryptWithDH(bobKey, ephemeralKey1, cyphertext1)
@@ -67,11 +73,15 @@ func (s *EncryptionServiceTestSuite) testEncryptPayloadNoBundle() {
 	s.Equalf(cleartext, decryptedPayload1, "It correctly decrypts the payload using DH")
 
 	// The next message will not be re-using the same key
-	cyphertext2, ephemeralKey2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	encryptionResponse2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
 	s.NoError(err)
+
+	cyphertext2 := encryptionResponse2.EncryptedPayload
+	ephemeralKey2 := encryptionResponse2.EphemeralKey
 
 	s.NotEqual(cyphertext1, cyphertext2, "It does not re-use the symmetric key")
 	s.NotEqual(ephemeralKey1, ephemeralKey2, "It does not re-use the ephemeral key")
+	s.Equalf(EncryptionTypeDH, encryptionResponse2.EncryptionType, "It sets the encryption type to DH")
 
 	decryptedPayload2, err := s.bob.DecryptWithDH(bobKey, ephemeralKey2, cyphertext2)
 	s.NoError(err)
@@ -96,11 +106,17 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.NoError(err)
 
 	// We send a message using the bundle
-	cyphertext1, ephemeralKey1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	encryptionResponse1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	s.NoError(err)
+
+	cyphertext1 := encryptionResponse1.EncryptedPayload
+	ephemeralKey1 := encryptionResponse1.EphemeralKey
+
 	s.NoError(err)
 	s.NotNil(cyphertext1, "It generates an encrypted payload")
 	s.NotEqualf(cyphertext1, cleartext, "It encrypts the payload correctly")
 	s.NotNil(ephemeralKey1, "It generates an ephemeral key")
+	s.Equalf(encryptionResponse1.EncryptionType, EncryptionTypeX3DH, "It sets the encryption type to X3DH")
 
 	// Bob is able to decrypt it using the bundle
 
@@ -111,7 +127,12 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.Equalf(cleartext, decryptedPayload1, "It correctly decrypts the payload using X3DH")
 
 	// Alice sends another message, this time she will use the same key as generated previously
-	cyphertext2, ephemeralKey2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	encryptionResponse2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
+	s.NoError(err)
+
+	cyphertext2 := encryptionResponse2.EncryptedPayload
+	ephemeralKey2 := encryptionResponse2.EphemeralKey
+
 	s.NoError(err)
 	s.NotNil(cyphertext2, "It generates an encrypted payload")
 	s.NotEqualf(cyphertext2, cleartext, "It encrypts the payload correctly")

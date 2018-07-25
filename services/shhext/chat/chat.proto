@@ -43,9 +43,12 @@ message ContactUpdateRPC {
 // Sent among peers
 message DirectMessageProtocol {
   // Which ephemeral key has been used
-  bytes ephemeral_key = 1;
-  // Bundle pre key in case of x3dh
-  bytes bundle_pre_key = 2;
+  oneof ephemeral_key {
+    bytes bundle_key = 1;
+    bytes dh_key = 2;
+    bytes sym_key = 3;
+  }
+
   oneof payload {
     // Encrypted payloads
     bytes one_to_one_payload = 101;

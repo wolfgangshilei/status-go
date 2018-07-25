@@ -2,7 +2,7 @@ package chat
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/crypto"
+	//	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 )
@@ -22,7 +22,7 @@ func NewProtocolService(encryption *EncryptionService) *ProtocolService {
 func (p *ProtocolService) BuildDirectMessage(myPrivateKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 
 	// Encrypt payload
-	encryptedPayload, ephemeralKey, err := p.encryption.EncryptPayload(theirPublicKey, myPrivateKey, payload)
+	encryptionResponse, err := p.encryption.EncryptPayload(theirPublicKey, myPrivateKey, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +38,9 @@ func (p *ProtocolService) BuildDirectMessage(myPrivateKey *ecdsa.PrivateKey, the
 		MessageType: &ProtocolMessage_DirectMessage{
 			DirectMessage: &DirectMessageProtocol{
 				// Can we return already compressed
-				EphemeralKey: crypto.CompressPubkey(ephemeralKey),
+				//				EphemeralKey: crypto.CompressPubkey(ephemeralKey),
 				Payload: &DirectMessageProtocol_OneToOnePayload{
-					encryptedPayload,
+					encryptionResponse.EncryptedPayload,
 				},
 			},
 		},
@@ -52,4 +52,9 @@ func (p *ProtocolService) BuildDirectMessage(myPrivateKey *ecdsa.PrivateKey, the
 	}
 
 	return marshaledMessage, nil
+}
+
+func (p *ProtocolService) HandleMessage(myPrivateKey *ecdsa.PrivateKey, payload []byte) ([]byte, error) {
+	return nil, nil
+
 }
