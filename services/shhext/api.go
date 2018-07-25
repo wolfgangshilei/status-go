@@ -221,14 +221,8 @@ func parsePublicKey(pk []byte) (*ecdsa.PublicKey, error) {
 }
 
 func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOneRPC) (hexutil.Bytes, error) {
-	// Check dst is there
-	// Check bundle_id and bundle is there
-	// Check sym_key_id is there
-	// Encrypt OneToOnePayload
-	// Send through whisper
 
 	api.log.Info("SendOneToOneMessage", "request", msg)
-	var compressedKey []byte
 
 	// To be completely agnostic from whisper we should not be using this to store the key
 	privateKey, err := api.service.w.GetPrivateKey(msg.GetSrc())
@@ -247,46 +241,13 @@ func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOne
 		return nil, err
 	}
 
-	api.log.Info("SendOneToOneMessage", "marshaled payload", marshaledPayload)
-
-	encryptedPayload, ephemeralKey, err := api.service.encryption.EncryptPayload(publicKey, privateKey, marshaledPayload)
+	protocolMessage, err := api.service.protocol.BuildDirectMessage(privateKey, publicKey, marshaledPayload)
 	if err != nil {
 		return nil, err
-	}
-	api.log.Info("SendOneToOneMessage", "Encrypted payload", encryptedPayload)
-
-	bundle, err := api.service.encryption.GetBundle(privateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	api.log.Info("SendOneToOneMessage", "Got bundle", bundle)
-
-	if ephemeralKey != nil {
-		compressedKey = crypto.CompressPubkey(ephemeralKey)
-	}
-	api.log.Info("SendOneToOneMessage", "Compressed key", compressedKey)
-
-	protocolMessage := &chat.ProtocolMessage{
-		Bundle: bundle,
-		MessageType: &chat.ProtocolMessage_DirectMessage{
-			DirectMessage: &chat.DirectMessageProtocol{
-				EphemeralKey: compressedKey,
-				Payload: &chat.DirectMessageProtocol_OneToOnePayload{
-					encryptedPayload,
-				},
-			},
-		},
 	}
 	api.log.Info("SendOneToOneMessage", "Created message ", protocolMessage)
 
-	marshaledMessage, err := proto.Marshal(protocolMessage)
-	if err != nil {
-		return nil, err
-	}
-	api.log.Info("SendOneToOneMessage", "Marshaled message ", marshaledMessage)
-
-	whisperMessage, err := chat.DirectMessageToWhisper(&msg, marshaledMessage)
+	whisperMessage, err := chat.DirectMessageToWhisper(&msg, protocolMessage)
 	if err != nil {
 		return nil, err
 	}

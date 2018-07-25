@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	"github.com/status-im/status-go/services/shhext/dedup"
 	"github.com/status-im/status-go/services/shhext/chat"
+	"github.com/status-im/status-go/services/shhext/dedup"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -42,7 +42,8 @@ type Service struct {
 	tracker      *tracker
 	nodeID       *ecdsa.PrivateKey
 	deduplicator *dedup.Deduplicator
-        encryption   *chat.EncryptionService
+	protocol     *chat.ProtocolService
+	encryption   *chat.EncryptionService
 	debug        bool
 }
 
@@ -60,7 +61,7 @@ func New(w *whisper.Whisper, handler EnvelopeEventsHandler, db *leveldb.DB, debu
 		w:            w,
 		tracker:      track,
 		deduplicator: dedup.NewDeduplicator(w, db),
-                encryption:   chat.NewEncryptionService(db),
+		protocol:     chat.NewProtocolService(chat.NewEncryptionService(chat.NewPersistenceService(db))),
 		debug:        debug,
 	}
 }

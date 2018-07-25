@@ -37,8 +37,8 @@ func (s *EncryptionServiceTestSuite) SetupTest() {
 
 	s.alicedb = alicedb
 	s.bobdb = bobdb
-	s.alice = NewEncryptionService(alicedb)
-	s.bob = NewEncryptionService(bobdb)
+	s.alice = NewEncryptionService(NewPersistenceService(alicedb))
+	s.bob = NewEncryptionService(NewPersistenceService(bobdb))
 }
 
 func (s *EncryptionServiceTestSuite) TearDownTest() {
@@ -92,7 +92,7 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.NoError(err)
 
 	// We add bob bundle
-	err = s.alice.AddPublicBundle(bobBundle)
+	err = s.alice.persistence.AddPublicBundle(bobBundle)
 	s.NoError(err)
 
 	// We send a message using the bundle
