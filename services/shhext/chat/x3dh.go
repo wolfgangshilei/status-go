@@ -54,7 +54,12 @@ func NewBundleContainer(identity *ecdsa.PrivateKey) (*BundleContainer, error) {
 	}, nil
 }
 
-func verifyBundle(bundle *Bundle, bundleIdentityKey *ecdsa.PublicKey) error {
+func VerifyBundle(bundle *Bundle) error {
+
+	bundleIdentityKey, err := crypto.DecompressPubkey(bundle.GetIdentity())
+	if err != nil {
+		return err
+	}
 
 	recoveredKey, err := crypto.SigToPub(
 		crypto.Keccak256(bundle.GetSignedPreKey()),
@@ -167,7 +172,7 @@ func PerformActiveX3DH(bundle *Bundle, prv *ecdsa.PrivateKey) ([]byte, *ecdsa.Pu
 		return nil, nil, err
 	}
 
-	err = verifyBundle(bundle, bundleIdentityKey)
+	err = VerifyBundle(bundle)
 
 	if err != nil {
 		return nil, nil, err

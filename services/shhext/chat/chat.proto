@@ -14,6 +14,7 @@ message BundleContainer {
 }
 
 // What is sent through the wire
+// Rename to ChatMessagePayload?
 message OneToOnePayload {
   string content = 1;
   string content_type = 2;
@@ -40,7 +41,7 @@ message ContactUpdateRPC {
   ContactUpdatePayload payload = 3;
 }
 
-// Sent among peers
+// Sent among peers, needs to be encrypted
 message DirectMessageProtocol {
   // Which ephemeral key has been used
   oneof ephemeral_key {
@@ -48,12 +49,10 @@ message DirectMessageProtocol {
     bytes dh_key = 2;
     bytes sym_key = 3;
   }
+  // The bundle used in case of x3dh
+  bytes bundle_id = 4;
 
-  oneof payload {
-    // Encrypted payloads
-    bytes one_to_one_payload = 101;
-    bytes contact_update_payload = 102;
-  }
+  bytes payload = 5;
 }
 
 // Message sent among peers
@@ -62,6 +61,17 @@ message ProtocolMessage {
 
   Bundle bundle = 1;
   oneof message_type {
+    // One to one message encrypted
     DirectMessageProtocol direct_message = 101;
+    // Public chats, not encrypted
+    bytes public_message = 102;
+  }
+}
+
+// Decrypted incoming message
+message ProtocolMessageIncoming {
+  oneof message_type {
+    bytes one_to_one_message = 1;
+    bytes public_message = 2;
   }
 }

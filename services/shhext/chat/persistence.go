@@ -97,6 +97,10 @@ func (s *PersistenceService) GetAnySymmetricKey(pk []byte) ([]byte, *ecdsa.Publi
 	return nil, nil, nil
 }
 
+func (s *PersistenceService) GetSymmetricKey(dst []byte, id []byte) ([]byte, error) {
+	return s.db.Get(symmetricKeyKey(append(dst, id...)), nil)
+}
+
 func (s *PersistenceService) PutSymmetricKey(dst []byte, id []byte, key []byte) error {
 	return s.db.Put(symmetricKeyKey(append(dst, id...)), key, nil)
 }

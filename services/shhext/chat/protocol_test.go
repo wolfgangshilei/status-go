@@ -51,7 +51,12 @@ func (s *ProtocolServiceTestSuite) TestBuildDirectMessage() {
 	aliceKey, err := crypto.GenerateKey()
 	s.NoError(err)
 
-	payload, err := proto.Marshal(&OneToOnePayload{})
+	payload, err := proto.Marshal(&OneToOnePayload{
+		Content:     "Test content",
+		ClockValue:  1,
+		ContentType: "a",
+		MessageType: "some type",
+	})
 	s.NoError(err)
 
 	marshaledMsg, err := s.alice.BuildDirectMessage(aliceKey, &bobKey.PublicKey, payload)
@@ -69,6 +74,37 @@ func (s *ProtocolServiceTestSuite) TestBuildDirectMessage() {
 	directMessage := unmarshaledMsg.GetDirectMessage()
 
 	s.NotNilf(directMessage, "It sets the direct message")
-	s.Equal("a", directMessage)
+
+	encryptedPayload := directMessage.GetPayload()
+
+	s.NotNilf(encryptedPayload, "It sets the payload of the message")
+
+	s.NotEqualf(payload, encryptedPayload, "It encrypts the payload")
+
+	s.NotNilf(directMessage.GetDhKey(), "It sets the encryption key used for dh")
+}
+
+func (s *ProtocolServiceTestSuite) TestBuildAndReadDirectMessage() {
+	bobKey, err := crypto.GenerateKey()
+	s.NoError(err)
+	aliceKey, err := crypto.GenerateKey()
+	s.NoError(err)
+
+	payload, err := proto.Marshal(&OneToOnePayload{
+		Content:     "Test content",
+		ClockValue:  1,
+		ContentType: "a",
+		MessageType: "some type",
+	})
+	s.NoError(err)
+
+	marshaledMsg, err := s.alice.BuildDirectMessage(aliceKey, &bobKey.PublicKey, payload)
+
+	s.NoError(err)
+
+	unmarshaledMsg, err := s.bob.HandleMessage(bobKey, &aliceKey.PublicKey, marshaledMsg)
+
+	s.NoError(err)
+	s.NotNil(unmarshaledMsg.GetOneToOneMessage())
 
 }

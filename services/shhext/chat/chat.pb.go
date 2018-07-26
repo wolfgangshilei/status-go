@@ -31,7 +31,7 @@ func (m *Bundle) Reset()         { *m = Bundle{} }
 func (m *Bundle) String() string { return proto.CompactTextString(m) }
 func (*Bundle) ProtoMessage()    {}
 func (*Bundle) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{0}
+	return fileDescriptor_chat_f2021a02284b3119, []int{0}
 }
 func (m *Bundle) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Bundle.Unmarshal(m, b)
@@ -84,7 +84,7 @@ func (m *BundleContainer) Reset()         { *m = BundleContainer{} }
 func (m *BundleContainer) String() string { return proto.CompactTextString(m) }
 func (*BundleContainer) ProtoMessage()    {}
 func (*BundleContainer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{1}
+	return fileDescriptor_chat_f2021a02284b3119, []int{1}
 }
 func (m *BundleContainer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BundleContainer.Unmarshal(m, b)
@@ -119,6 +119,7 @@ func (m *BundleContainer) GetPrivateSignedPreKey() []byte {
 }
 
 // What is sent through the wire
+// Rename to ChatMessagePayload?
 type OneToOnePayload struct {
 	Content              string   `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
 	ContentType          string   `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
@@ -133,7 +134,7 @@ func (m *OneToOnePayload) Reset()         { *m = OneToOnePayload{} }
 func (m *OneToOnePayload) String() string { return proto.CompactTextString(m) }
 func (*OneToOnePayload) ProtoMessage()    {}
 func (*OneToOnePayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{2}
+	return fileDescriptor_chat_f2021a02284b3119, []int{2}
 }
 func (m *OneToOnePayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OneToOnePayload.Unmarshal(m, b)
@@ -195,7 +196,7 @@ func (m *ContactUpdatePayload) Reset()         { *m = ContactUpdatePayload{} }
 func (m *ContactUpdatePayload) String() string { return proto.CompactTextString(m) }
 func (*ContactUpdatePayload) ProtoMessage()    {}
 func (*ContactUpdatePayload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{3}
+	return fileDescriptor_chat_f2021a02284b3119, []int{3}
 }
 func (m *ContactUpdatePayload) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ContactUpdatePayload.Unmarshal(m, b)
@@ -256,7 +257,7 @@ func (m *OneToOneRPC) Reset()         { *m = OneToOneRPC{} }
 func (m *OneToOneRPC) String() string { return proto.CompactTextString(m) }
 func (*OneToOneRPC) ProtoMessage()    {}
 func (*OneToOneRPC) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{4}
+	return fileDescriptor_chat_f2021a02284b3119, []int{4}
 }
 func (m *OneToOneRPC) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_OneToOneRPC.Unmarshal(m, b)
@@ -310,7 +311,7 @@ func (m *ContactUpdateRPC) Reset()         { *m = ContactUpdateRPC{} }
 func (m *ContactUpdateRPC) String() string { return proto.CompactTextString(m) }
 func (*ContactUpdateRPC) ProtoMessage()    {}
 func (*ContactUpdateRPC) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{5}
+	return fileDescriptor_chat_f2021a02284b3119, []int{5}
 }
 func (m *ContactUpdateRPC) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ContactUpdateRPC.Unmarshal(m, b)
@@ -351,7 +352,7 @@ func (m *ContactUpdateRPC) GetPayload() *ContactUpdatePayload {
 	return nil
 }
 
-// Sent among peers
+// Sent among peers, needs to be encrypted
 type DirectMessageProtocol struct {
 	// Which ephemeral key has been used
 	//
@@ -360,20 +361,19 @@ type DirectMessageProtocol struct {
 	//	*DirectMessageProtocol_DhKey
 	//	*DirectMessageProtocol_SymKey
 	EphemeralKey isDirectMessageProtocol_EphemeralKey `protobuf_oneof:"ephemeral_key"`
-	// Types that are valid to be assigned to Payload:
-	//	*DirectMessageProtocol_OneToOnePayload
-	//	*DirectMessageProtocol_ContactUpdatePayload
-	Payload              isDirectMessageProtocol_Payload `protobuf_oneof:"payload"`
-	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
-	XXX_unrecognized     []byte                          `json:"-"`
-	XXX_sizecache        int32                           `json:"-"`
+	// The bundle used in case of x3dh
+	BundleId             []byte   `protobuf:"bytes,4,opt,name=bundle_id,json=bundleId,proto3" json:"bundle_id,omitempty"`
+	Payload              []byte   `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *DirectMessageProtocol) Reset()         { *m = DirectMessageProtocol{} }
 func (m *DirectMessageProtocol) String() string { return proto.CompactTextString(m) }
 func (*DirectMessageProtocol) ProtoMessage()    {}
 func (*DirectMessageProtocol) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{6}
+	return fileDescriptor_chat_f2021a02284b3119, []int{6}
 }
 func (m *DirectMessageProtocol) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DirectMessageProtocol.Unmarshal(m, b)
@@ -396,9 +396,6 @@ var xxx_messageInfo_DirectMessageProtocol proto.InternalMessageInfo
 type isDirectMessageProtocol_EphemeralKey interface {
 	isDirectMessageProtocol_EphemeralKey()
 }
-type isDirectMessageProtocol_Payload interface {
-	isDirectMessageProtocol_Payload()
-}
 
 type DirectMessageProtocol_BundleKey struct {
 	BundleKey []byte `protobuf:"bytes,1,opt,name=bundle_key,json=bundleKey,proto3,oneof"`
@@ -409,28 +406,14 @@ type DirectMessageProtocol_DhKey struct {
 type DirectMessageProtocol_SymKey struct {
 	SymKey []byte `protobuf:"bytes,3,opt,name=sym_key,json=symKey,proto3,oneof"`
 }
-type DirectMessageProtocol_OneToOnePayload struct {
-	OneToOnePayload []byte `protobuf:"bytes,101,opt,name=one_to_one_payload,json=oneToOnePayload,proto3,oneof"`
-}
-type DirectMessageProtocol_ContactUpdatePayload struct {
-	ContactUpdatePayload []byte `protobuf:"bytes,102,opt,name=contact_update_payload,json=contactUpdatePayload,proto3,oneof"`
-}
 
-func (*DirectMessageProtocol_BundleKey) isDirectMessageProtocol_EphemeralKey()       {}
-func (*DirectMessageProtocol_DhKey) isDirectMessageProtocol_EphemeralKey()           {}
-func (*DirectMessageProtocol_SymKey) isDirectMessageProtocol_EphemeralKey()          {}
-func (*DirectMessageProtocol_OneToOnePayload) isDirectMessageProtocol_Payload()      {}
-func (*DirectMessageProtocol_ContactUpdatePayload) isDirectMessageProtocol_Payload() {}
+func (*DirectMessageProtocol_BundleKey) isDirectMessageProtocol_EphemeralKey() {}
+func (*DirectMessageProtocol_DhKey) isDirectMessageProtocol_EphemeralKey()     {}
+func (*DirectMessageProtocol_SymKey) isDirectMessageProtocol_EphemeralKey()    {}
 
 func (m *DirectMessageProtocol) GetEphemeralKey() isDirectMessageProtocol_EphemeralKey {
 	if m != nil {
 		return m.EphemeralKey
-	}
-	return nil
-}
-func (m *DirectMessageProtocol) GetPayload() isDirectMessageProtocol_Payload {
-	if m != nil {
-		return m.Payload
 	}
 	return nil
 }
@@ -456,16 +439,16 @@ func (m *DirectMessageProtocol) GetSymKey() []byte {
 	return nil
 }
 
-func (m *DirectMessageProtocol) GetOneToOnePayload() []byte {
-	if x, ok := m.GetPayload().(*DirectMessageProtocol_OneToOnePayload); ok {
-		return x.OneToOnePayload
+func (m *DirectMessageProtocol) GetBundleId() []byte {
+	if m != nil {
+		return m.BundleId
 	}
 	return nil
 }
 
-func (m *DirectMessageProtocol) GetContactUpdatePayload() []byte {
-	if x, ok := m.GetPayload().(*DirectMessageProtocol_ContactUpdatePayload); ok {
-		return x.ContactUpdatePayload
+func (m *DirectMessageProtocol) GetPayload() []byte {
+	if m != nil {
+		return m.Payload
 	}
 	return nil
 }
@@ -476,8 +459,6 @@ func (*DirectMessageProtocol) XXX_OneofFuncs() (func(msg proto.Message, b *proto
 		(*DirectMessageProtocol_BundleKey)(nil),
 		(*DirectMessageProtocol_DhKey)(nil),
 		(*DirectMessageProtocol_SymKey)(nil),
-		(*DirectMessageProtocol_OneToOnePayload)(nil),
-		(*DirectMessageProtocol_ContactUpdatePayload)(nil),
 	}
 }
 
@@ -497,18 +478,6 @@ func _DirectMessageProtocol_OneofMarshaler(msg proto.Message, b *proto.Buffer) e
 	case nil:
 	default:
 		return fmt.Errorf("DirectMessageProtocol.EphemeralKey has unexpected type %T", x)
-	}
-	// payload
-	switch x := m.Payload.(type) {
-	case *DirectMessageProtocol_OneToOnePayload:
-		b.EncodeVarint(101<<3 | proto.WireBytes)
-		b.EncodeRawBytes(x.OneToOnePayload)
-	case *DirectMessageProtocol_ContactUpdatePayload:
-		b.EncodeVarint(102<<3 | proto.WireBytes)
-		b.EncodeRawBytes(x.ContactUpdatePayload)
-	case nil:
-	default:
-		return fmt.Errorf("DirectMessageProtocol.Payload has unexpected type %T", x)
 	}
 	return nil
 }
@@ -537,20 +506,6 @@ func _DirectMessageProtocol_OneofUnmarshaler(msg proto.Message, tag, wire int, b
 		x, err := b.DecodeRawBytes(true)
 		m.EphemeralKey = &DirectMessageProtocol_SymKey{x}
 		return true, err
-	case 101: // payload.one_to_one_payload
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeRawBytes(true)
-		m.Payload = &DirectMessageProtocol_OneToOnePayload{x}
-		return true, err
-	case 102: // payload.contact_update_payload
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeRawBytes(true)
-		m.Payload = &DirectMessageProtocol_ContactUpdatePayload{x}
-		return true, err
 	default:
 		return false, nil
 	}
@@ -576,20 +531,6 @@ func _DirectMessageProtocol_OneofSizer(msg proto.Message) (n int) {
 	default:
 		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
 	}
-	// payload
-	switch x := m.Payload.(type) {
-	case *DirectMessageProtocol_OneToOnePayload:
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.OneToOnePayload)))
-		n += len(x.OneToOnePayload)
-	case *DirectMessageProtocol_ContactUpdatePayload:
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ContactUpdatePayload)))
-		n += len(x.ContactUpdatePayload)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
 	return n
 }
 
@@ -598,6 +539,7 @@ type ProtocolMessage struct {
 	Bundle *Bundle `protobuf:"bytes,1,opt,name=bundle,proto3" json:"bundle,omitempty"`
 	// Types that are valid to be assigned to MessageType:
 	//	*ProtocolMessage_DirectMessage
+	//	*ProtocolMessage_PublicMessage
 	MessageType          isProtocolMessage_MessageType `protobuf_oneof:"message_type"`
 	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
 	XXX_unrecognized     []byte                        `json:"-"`
@@ -608,7 +550,7 @@ func (m *ProtocolMessage) Reset()         { *m = ProtocolMessage{} }
 func (m *ProtocolMessage) String() string { return proto.CompactTextString(m) }
 func (*ProtocolMessage) ProtoMessage()    {}
 func (*ProtocolMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_chat_60d02244b3cb65cc, []int{7}
+	return fileDescriptor_chat_f2021a02284b3119, []int{7}
 }
 func (m *ProtocolMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProtocolMessage.Unmarshal(m, b)
@@ -635,8 +577,12 @@ type isProtocolMessage_MessageType interface {
 type ProtocolMessage_DirectMessage struct {
 	DirectMessage *DirectMessageProtocol `protobuf:"bytes,101,opt,name=direct_message,json=directMessage,proto3,oneof"`
 }
+type ProtocolMessage_PublicMessage struct {
+	PublicMessage []byte `protobuf:"bytes,102,opt,name=public_message,json=publicMessage,proto3,oneof"`
+}
 
 func (*ProtocolMessage_DirectMessage) isProtocolMessage_MessageType() {}
+func (*ProtocolMessage_PublicMessage) isProtocolMessage_MessageType() {}
 
 func (m *ProtocolMessage) GetMessageType() isProtocolMessage_MessageType {
 	if m != nil {
@@ -659,10 +605,18 @@ func (m *ProtocolMessage) GetDirectMessage() *DirectMessageProtocol {
 	return nil
 }
 
+func (m *ProtocolMessage) GetPublicMessage() []byte {
+	if x, ok := m.GetMessageType().(*ProtocolMessage_PublicMessage); ok {
+		return x.PublicMessage
+	}
+	return nil
+}
+
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ProtocolMessage) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
 	return _ProtocolMessage_OneofMarshaler, _ProtocolMessage_OneofUnmarshaler, _ProtocolMessage_OneofSizer, []interface{}{
 		(*ProtocolMessage_DirectMessage)(nil),
+		(*ProtocolMessage_PublicMessage)(nil),
 	}
 }
 
@@ -675,6 +629,9 @@ func _ProtocolMessage_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 		if err := b.EncodeMessage(x.DirectMessage); err != nil {
 			return err
 		}
+	case *ProtocolMessage_PublicMessage:
+		b.EncodeVarint(102<<3 | proto.WireBytes)
+		b.EncodeRawBytes(x.PublicMessage)
 	case nil:
 	default:
 		return fmt.Errorf("ProtocolMessage.MessageType has unexpected type %T", x)
@@ -693,6 +650,13 @@ func _ProtocolMessage_OneofUnmarshaler(msg proto.Message, tag, wire int, b *prot
 		err := b.DecodeMessage(msg)
 		m.MessageType = &ProtocolMessage_DirectMessage{msg}
 		return true, err
+	case 102: // message_type.public_message
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		x, err := b.DecodeRawBytes(true)
+		m.MessageType = &ProtocolMessage_PublicMessage{x}
+		return true, err
 	default:
 		return false, nil
 	}
@@ -707,6 +671,146 @@ func _ProtocolMessage_OneofSizer(msg proto.Message) (n int) {
 		n += 2 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
+	case *ProtocolMessage_PublicMessage:
+		n += 2 // tag and wire
+		n += proto.SizeVarint(uint64(len(x.PublicMessage)))
+		n += len(x.PublicMessage)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+// Decrypted incoming message
+type ProtocolMessageIncoming struct {
+	// Types that are valid to be assigned to MessageType:
+	//	*ProtocolMessageIncoming_OneToOneMessage
+	//	*ProtocolMessageIncoming_PublicMessage
+	MessageType          isProtocolMessageIncoming_MessageType `protobuf_oneof:"message_type"`
+	XXX_NoUnkeyedLiteral struct{}                              `json:"-"`
+	XXX_unrecognized     []byte                                `json:"-"`
+	XXX_sizecache        int32                                 `json:"-"`
+}
+
+func (m *ProtocolMessageIncoming) Reset()         { *m = ProtocolMessageIncoming{} }
+func (m *ProtocolMessageIncoming) String() string { return proto.CompactTextString(m) }
+func (*ProtocolMessageIncoming) ProtoMessage()    {}
+func (*ProtocolMessageIncoming) Descriptor() ([]byte, []int) {
+	return fileDescriptor_chat_f2021a02284b3119, []int{8}
+}
+func (m *ProtocolMessageIncoming) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ProtocolMessageIncoming.Unmarshal(m, b)
+}
+func (m *ProtocolMessageIncoming) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ProtocolMessageIncoming.Marshal(b, m, deterministic)
+}
+func (dst *ProtocolMessageIncoming) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProtocolMessageIncoming.Merge(dst, src)
+}
+func (m *ProtocolMessageIncoming) XXX_Size() int {
+	return xxx_messageInfo_ProtocolMessageIncoming.Size(m)
+}
+func (m *ProtocolMessageIncoming) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProtocolMessageIncoming.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProtocolMessageIncoming proto.InternalMessageInfo
+
+type isProtocolMessageIncoming_MessageType interface {
+	isProtocolMessageIncoming_MessageType()
+}
+
+type ProtocolMessageIncoming_OneToOneMessage struct {
+	OneToOneMessage []byte `protobuf:"bytes,1,opt,name=one_to_one_message,json=oneToOneMessage,proto3,oneof"`
+}
+type ProtocolMessageIncoming_PublicMessage struct {
+	PublicMessage []byte `protobuf:"bytes,2,opt,name=public_message,json=publicMessage,proto3,oneof"`
+}
+
+func (*ProtocolMessageIncoming_OneToOneMessage) isProtocolMessageIncoming_MessageType() {}
+func (*ProtocolMessageIncoming_PublicMessage) isProtocolMessageIncoming_MessageType()   {}
+
+func (m *ProtocolMessageIncoming) GetMessageType() isProtocolMessageIncoming_MessageType {
+	if m != nil {
+		return m.MessageType
+	}
+	return nil
+}
+
+func (m *ProtocolMessageIncoming) GetOneToOneMessage() []byte {
+	if x, ok := m.GetMessageType().(*ProtocolMessageIncoming_OneToOneMessage); ok {
+		return x.OneToOneMessage
+	}
+	return nil
+}
+
+func (m *ProtocolMessageIncoming) GetPublicMessage() []byte {
+	if x, ok := m.GetMessageType().(*ProtocolMessageIncoming_PublicMessage); ok {
+		return x.PublicMessage
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ProtocolMessageIncoming) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ProtocolMessageIncoming_OneofMarshaler, _ProtocolMessageIncoming_OneofUnmarshaler, _ProtocolMessageIncoming_OneofSizer, []interface{}{
+		(*ProtocolMessageIncoming_OneToOneMessage)(nil),
+		(*ProtocolMessageIncoming_PublicMessage)(nil),
+	}
+}
+
+func _ProtocolMessageIncoming_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ProtocolMessageIncoming)
+	// message_type
+	switch x := m.MessageType.(type) {
+	case *ProtocolMessageIncoming_OneToOneMessage:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		b.EncodeRawBytes(x.OneToOneMessage)
+	case *ProtocolMessageIncoming_PublicMessage:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		b.EncodeRawBytes(x.PublicMessage)
+	case nil:
+	default:
+		return fmt.Errorf("ProtocolMessageIncoming.MessageType has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ProtocolMessageIncoming_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ProtocolMessageIncoming)
+	switch tag {
+	case 1: // message_type.one_to_one_message
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		x, err := b.DecodeRawBytes(true)
+		m.MessageType = &ProtocolMessageIncoming_OneToOneMessage{x}
+		return true, err
+	case 2: // message_type.public_message
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		x, err := b.DecodeRawBytes(true)
+		m.MessageType = &ProtocolMessageIncoming_PublicMessage{x}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ProtocolMessageIncoming_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ProtocolMessageIncoming)
+	// message_type
+	switch x := m.MessageType.(type) {
+	case *ProtocolMessageIncoming_OneToOneMessage:
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(len(x.OneToOneMessage)))
+		n += len(x.OneToOneMessage)
+	case *ProtocolMessageIncoming_PublicMessage:
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(len(x.PublicMessage)))
+		n += len(x.PublicMessage)
 	case nil:
 	default:
 		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
@@ -723,45 +827,48 @@ func init() {
 	proto.RegisterType((*ContactUpdateRPC)(nil), "chat.ContactUpdateRPC")
 	proto.RegisterType((*DirectMessageProtocol)(nil), "chat.DirectMessageProtocol")
 	proto.RegisterType((*ProtocolMessage)(nil), "chat.ProtocolMessage")
+	proto.RegisterType((*ProtocolMessageIncoming)(nil), "chat.ProtocolMessageIncoming")
 }
 
-func init() { proto.RegisterFile("chat.proto", fileDescriptor_chat_60d02244b3cb65cc) }
+func init() { proto.RegisterFile("chat.proto", fileDescriptor_chat_f2021a02284b3119) }
 
-var fileDescriptor_chat_60d02244b3cb65cc = []byte{
-	// 559 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xcf, 0x4e, 0xdb, 0x4e,
-	0x10, 0xc6, 0xbf, 0xf0, 0x0b, 0x78, 0x1c, 0x08, 0xda, 0x02, 0x4d, 0xa1, 0x12, 0xd4, 0xe5, 0xc0,
-	0xa5, 0x54, 0x0a, 0x55, 0x1f, 0x20, 0x70, 0x48, 0x55, 0x55, 0x44, 0xdb, 0xb4, 0x57, 0x6b, 0xb3,
-	0x3b, 0x49, 0xac, 0xd8, 0xbb, 0x96, 0xbd, 0x41, 0xf2, 0x0b, 0xf4, 0xd6, 0x4b, 0x5f, 0xb4, 0xaf,
-	0x50, 0xed, 0x1f, 0x27, 0x10, 0xe5, 0xc0, 0x29, 0x33, 0xdf, 0x7c, 0x9b, 0xef, 0x9b, 0xd9, 0x59,
-	0x03, 0xf0, 0x39, 0xd3, 0x37, 0x45, 0xa9, 0xb4, 0x22, 0xbb, 0x26, 0x8e, 0xe7, 0xd0, 0x1e, 0x2c,
-	0xa5, 0xc8, 0x90, 0x9c, 0xc1, 0x7e, 0x2a, 0x50, 0xea, 0x54, 0xd7, 0xbd, 0xe0, 0x32, 0xb8, 0xee,
-	0xd0, 0x55, 0x4e, 0xae, 0xe0, 0xb0, 0x4a, 0x67, 0x12, 0x45, 0x52, 0x94, 0x98, 0x2c, 0xb0, 0xee,
-	0xfd, 0x67, 0x19, 0x1d, 0x87, 0x8e, 0x4a, 0xfc, 0x8a, 0x35, 0x79, 0x0b, 0xa1, 0xc9, 0x99, 0x5e,
-	0x96, 0xd8, 0x6b, 0x59, 0xc2, 0x1a, 0x88, 0x33, 0xe8, 0x3a, 0xa5, 0x3b, 0x25, 0x35, 0x4b, 0x25,
-	0x96, 0xe4, 0x0a, 0xda, 0x13, 0x0b, 0x59, 0xc1, 0xa8, 0xdf, 0xb9, 0xb1, 0xfe, 0x1c, 0x8d, 0xfa,
-	0x1a, 0xb9, 0x85, 0xd3, 0xa2, 0x4c, 0x1f, 0x99, 0xc6, 0x64, 0xab, 0x89, 0x57, 0xbe, 0xfa, 0xfd,
-	0x89, 0x97, 0xf8, 0x4f, 0x00, 0xdd, 0x07, 0x89, 0x63, 0xf5, 0x20, 0x71, 0xc4, 0xea, 0x4c, 0x31,
-	0x41, 0x7a, 0xb0, 0xc7, 0x95, 0xd4, 0x28, 0xb5, 0xd5, 0x0b, 0x69, 0x93, 0x92, 0x77, 0xd0, 0xf1,
-	0x61, 0xa2, 0xeb, 0x02, 0xed, 0x1f, 0x87, 0x34, 0xf2, 0xd8, 0xb8, 0x2e, 0xd0, 0x50, 0x72, 0xac,
-	0x2a, 0x36, 0x43, 0x47, 0x69, 0x39, 0x8a, 0xc7, 0x2c, 0xe5, 0x02, 0x22, 0x9e, 0x29, 0xbe, 0x48,
-	0x1e, 0x59, 0xb6, 0xc4, 0xde, 0xee, 0x65, 0x70, 0xdd, 0xa2, 0x60, 0xa1, 0x9f, 0x06, 0x89, 0x7f,
-	0x05, 0x70, 0x6c, 0xbb, 0xe7, 0xfa, 0x47, 0x21, 0x98, 0x5e, 0x39, 0x23, 0xb0, 0x2b, 0x59, 0x8e,
-	0xde, 0x96, 0x8d, 0xc9, 0x7b, 0x38, 0x28, 0x4a, 0x35, 0x4d, 0x33, 0x4c, 0xd2, 0x9c, 0xcd, 0x1a,
-	0x53, 0x1d, 0x0f, 0x7e, 0x31, 0x98, 0x69, 0x89, 0x09, 0x51, 0x62, 0x55, 0x79, 0x43, 0x4d, 0x4a,
-	0xce, 0x21, 0x9c, 0xf2, 0x3c, 0xd1, 0x6a, 0x81, 0xd2, 0x5a, 0x09, 0xe9, 0xfe, 0x94, 0xe7, 0x63,
-	0x93, 0xc7, 0x13, 0x88, 0x9a, 0xe1, 0xd0, 0xd1, 0x1d, 0x39, 0x82, 0x56, 0x55, 0x72, 0xaf, 0x6e,
-	0x42, 0x83, 0x88, 0x4a, 0x7b, 0x49, 0x13, 0x92, 0x8f, 0xb0, 0x57, 0x38, 0xb7, 0x56, 0x29, 0xea,
-	0x9f, 0xb8, 0xcb, 0xda, 0x18, 0x32, 0x6d, 0x58, 0x71, 0x06, 0x47, 0xcf, 0x7a, 0x7d, 0xa9, 0xd0,
-	0xa7, 0x4d, 0xa1, 0x33, 0x27, 0xb4, 0x6d, 0x70, 0x6b, 0xb5, 0xbf, 0x01, 0x9c, 0xdc, 0xa7, 0x25,
-	0x72, 0xfd, 0xcd, 0xdd, 0xc8, 0xc8, 0x2c, 0x39, 0x57, 0x19, 0xb9, 0x00, 0x70, 0x8b, 0x64, 0x57,
-	0xc6, 0x6e, 0xf6, 0x70, 0x87, 0x86, 0x0e, 0x33, 0x6b, 0xfb, 0x1a, 0xda, 0x62, 0xbe, 0xde, 0xa7,
-	0xe1, 0x0e, 0xfd, 0x5f, 0xcc, 0x4d, 0xe1, 0x0d, 0xec, 0x55, 0x75, 0x6e, 0x2b, 0x2d, 0x5f, 0x69,
-	0x57, 0x75, 0x6e, 0x4a, 0x1f, 0x80, 0x28, 0x89, 0x89, 0x56, 0x89, 0xf9, 0x69, 0xfc, 0xa2, 0x65,
-	0x05, 0xb4, 0xab, 0x36, 0x36, 0xef, 0x33, 0x9c, 0x72, 0x67, 0x3f, 0x59, 0x5a, 0xff, 0xab, 0x23,
-	0x53, 0x7f, 0xe4, 0x98, 0x6f, 0x69, 0x6f, 0xd0, 0x85, 0x03, 0x2c, 0xe6, 0x98, 0x63, 0xc9, 0x32,
-	0xe3, 0x63, 0x10, 0xae, 0x86, 0x13, 0xff, 0x0e, 0xa0, 0xdb, 0x34, 0xe9, 0x7b, 0x7e, 0xe1, 0x83,
-	0xba, 0x87, 0x43, 0x61, 0x47, 0x95, 0xf8, 0xed, 0xb5, 0xc6, 0xa3, 0xfe, 0xb9, 0x63, 0x6f, 0x1d,
-	0xe3, 0x70, 0x87, 0x1e, 0x88, 0xa7, 0x85, 0xc1, 0xe1, 0xf3, 0x07, 0x31, 0x69, 0xdb, 0xcf, 0xca,
-	0xed, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x23, 0x98, 0x9c, 0xe4, 0x64, 0x04, 0x00, 0x00,
+var fileDescriptor_chat_f2021a02284b3119 = []byte{
+	// 590 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xdd, 0x4e, 0xdb, 0x4c,
+	0x10, 0xc5, 0x04, 0x02, 0x9e, 0x38, 0x09, 0xda, 0xef, 0xa3, 0xb8, 0x50, 0x09, 0xea, 0x22, 0x95,
+	0x9b, 0x52, 0x09, 0xfa, 0x04, 0xc0, 0x05, 0xa8, 0xaa, 0x88, 0xb6, 0xb4, 0xb7, 0xd6, 0x66, 0x77,
+	0x92, 0x58, 0xd8, 0xbb, 0x96, 0xbd, 0x41, 0xf2, 0x65, 0x6f, 0xfa, 0x00, 0x7d, 0x96, 0xaa, 0xcf,
+	0x57, 0xed, 0x8f, 0xf9, 0x89, 0x52, 0x29, 0x57, 0xec, 0x9c, 0x39, 0x9a, 0x73, 0x66, 0x7c, 0x08,
+	0x00, 0x9f, 0x31, 0x7d, 0x5a, 0x56, 0x4a, 0x2b, 0xb2, 0x61, 0xde, 0xc9, 0x0c, 0xba, 0x17, 0x73,
+	0x29, 0x72, 0x24, 0xfb, 0xb0, 0x9d, 0x09, 0x94, 0x3a, 0xd3, 0x4d, 0x1c, 0x1c, 0x05, 0x27, 0x11,
+	0x7d, 0xac, 0xc9, 0x31, 0x0c, 0xea, 0x6c, 0x2a, 0x51, 0xa4, 0x65, 0x85, 0xe9, 0x3d, 0x36, 0xf1,
+	0xba, 0x65, 0x44, 0x0e, 0x1d, 0x55, 0xf8, 0x19, 0x1b, 0xf2, 0x06, 0x42, 0x53, 0x33, 0x3d, 0xaf,
+	0x30, 0xee, 0x58, 0xc2, 0x13, 0x90, 0xe4, 0x30, 0x74, 0x4a, 0x97, 0x4a, 0x6a, 0x96, 0x49, 0xac,
+	0xc8, 0x31, 0x74, 0xc7, 0x16, 0xb2, 0x82, 0xbd, 0xb3, 0xe8, 0xd4, 0xfa, 0x73, 0x34, 0xea, 0x7b,
+	0xe4, 0x1c, 0x5e, 0x95, 0x55, 0xf6, 0xc0, 0x34, 0xa6, 0x4b, 0x4d, 0xfc, 0xe7, 0xbb, 0x5f, 0x9f,
+	0x79, 0x49, 0x7e, 0x05, 0x30, 0xbc, 0x95, 0x78, 0xa7, 0x6e, 0x25, 0x8e, 0x58, 0x93, 0x2b, 0x26,
+	0x48, 0x0c, 0x5b, 0x5c, 0x49, 0x8d, 0x52, 0x5b, 0xbd, 0x90, 0xb6, 0x25, 0x79, 0x0b, 0x91, 0x7f,
+	0xa6, 0xba, 0x29, 0xd1, 0x0e, 0x0e, 0x69, 0xcf, 0x63, 0x77, 0x4d, 0x89, 0x86, 0x52, 0x60, 0x5d,
+	0xb3, 0x29, 0x3a, 0x4a, 0xc7, 0x51, 0x3c, 0x66, 0x29, 0x87, 0xd0, 0xe3, 0xb9, 0xe2, 0xf7, 0xe9,
+	0x03, 0xcb, 0xe7, 0x18, 0x6f, 0x1c, 0x05, 0x27, 0x1d, 0x0a, 0x16, 0xfa, 0x6e, 0x90, 0xe4, 0x67,
+	0x00, 0xff, 0xdb, 0xed, 0xb9, 0xfe, 0x56, 0x0a, 0xa6, 0x1f, 0x9d, 0x11, 0xd8, 0x90, 0xac, 0x40,
+	0x6f, 0xcb, 0xbe, 0xc9, 0x3b, 0xe8, 0x97, 0x95, 0x9a, 0x64, 0x39, 0xa6, 0x59, 0xc1, 0xa6, 0xad,
+	0xa9, 0xc8, 0x83, 0x37, 0x06, 0x33, 0x2b, 0x31, 0x21, 0x2a, 0xac, 0x6b, 0x6f, 0xa8, 0x2d, 0xc9,
+	0x01, 0x84, 0x13, 0x5e, 0xa4, 0x5a, 0xdd, 0xa3, 0xb4, 0x56, 0x42, 0xba, 0x3d, 0xe1, 0xc5, 0x9d,
+	0xa9, 0x93, 0x31, 0xf4, 0xda, 0xe3, 0xd0, 0xd1, 0x25, 0xd9, 0x81, 0x4e, 0x5d, 0x71, 0xaf, 0x6e,
+	0x9e, 0x06, 0x11, 0xb5, 0xf6, 0x92, 0xe6, 0x49, 0x3e, 0xc2, 0x56, 0xe9, 0xdc, 0x5a, 0xa5, 0xde,
+	0xd9, 0xae, 0xfb, 0x58, 0x0b, 0x47, 0xa6, 0x2d, 0x2b, 0xc9, 0x61, 0xe7, 0xc5, 0xae, 0xab, 0x0a,
+	0x7d, 0x5a, 0x14, 0xda, 0x77, 0x42, 0xcb, 0x0e, 0xf7, 0xa4, 0xf6, 0x3b, 0x80, 0xdd, 0xab, 0xac,
+	0x42, 0xae, 0xbf, 0xb8, 0x2f, 0x32, 0x32, 0x21, 0xe7, 0x2a, 0x27, 0x87, 0x00, 0x2e, 0x48, 0x36,
+	0x32, 0x36, 0xd9, 0xd7, 0x6b, 0x34, 0x74, 0x98, 0x89, 0xed, 0x1e, 0x74, 0xc5, 0xec, 0x29, 0x4f,
+	0xd7, 0x6b, 0x74, 0x53, 0xcc, 0x4c, 0xe3, 0x35, 0x6c, 0xd5, 0x4d, 0x61, 0x3b, 0x1d, 0xdf, 0xe9,
+	0xd6, 0x4d, 0x61, 0x5a, 0x07, 0xe0, 0x07, 0xa4, 0x99, 0xb0, 0xd7, 0x8d, 0xe8, 0xb6, 0x03, 0x6e,
+	0x6c, 0xce, 0xda, 0x0d, 0x36, 0x6d, 0xab, 0x2d, 0x2f, 0x86, 0xd0, 0xc7, 0x72, 0x86, 0x05, 0x56,
+	0x2c, 0x37, 0x73, 0x93, 0x3f, 0x01, 0x0c, 0x5b, 0xa7, 0xde, 0xf8, 0x8a, 0xff, 0x15, 0x57, 0x30,
+	0x10, 0x76, 0xdf, 0xd4, 0x47, 0x30, 0x46, 0xcb, 0x3e, 0x70, 0xec, 0xa5, 0xb7, 0xb8, 0x5e, 0xa3,
+	0x7d, 0xf1, 0xbc, 0x41, 0xde, 0xc3, 0xa0, 0x9c, 0x8f, 0xf3, 0x8c, 0x3f, 0x4e, 0x99, 0xf8, 0x4d,
+	0xfb, 0x0e, 0xf7, 0xc4, 0x8b, 0xc1, 0xcb, 0xf8, 0x27, 0x3f, 0x02, 0xd8, 0x5b, 0x30, 0x7e, 0x23,
+	0xb9, 0x2a, 0x32, 0x39, 0x25, 0x1f, 0x80, 0x28, 0x89, 0xa9, 0x56, 0xa9, 0xf9, 0xd3, 0x0e, 0x6e,
+	0x2f, 0x3f, 0x54, 0x3e, 0x31, 0xff, 0xf6, 0xb0, 0xbe, 0x92, 0x87, 0x71, 0xd7, 0xfe, 0x90, 0x9d,
+	0xff, 0x0d, 0x00, 0x00, 0xff, 0xff, 0x95, 0x67, 0x71, 0x7c, 0xd6, 0x04, 0x00, 0x00,
 }
