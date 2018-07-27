@@ -7,17 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
-	"encoding/gob"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/status-im/status-go/services/shhext/chat"
 )
@@ -187,16 +184,6 @@ func (api *PublicAPI) RequestMessages(_ context.Context, r MessagesRequest) (hex
 	return hash[:], nil
 }
 
-func writeGob(filePath string, object interface{}) error {
-	file, err := os.Create(filePath)
-	if err == nil {
-		encoder := gob.NewEncoder(file)
-		encoder.Encode(object)
-	}
-	file.Close()
-	return err
-}
-
 // GetNewFilterMessages is a prototype method with deduplication
 func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message, error) {
 	msgs, err := api.publicAPI.GetFilterMessages(filterID)
@@ -211,54 +198,27 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 
 	for _, msg := range dedupMessages {
 
-		writeGob("/tmp/"+string(msg.Hash), msg)
 		if msg.Dst != nil {
 			keyBytes, err := hexutil.Bytes(msg.Dst).MarshalText()
 			if err != nil {
 				return nil, err
 			}
 
-			api.log.Info("Checking private key", string(keyBytes))
-
 			privateKey, err := api.service.w.GetPrivateKey(string(keyBytes))
-
 			if err != nil {
 				return nil, err
 			}
-
-			api.log.Info("Received message", "private key", privateKey)
-			api.log.Info("Public key", "public key", msg.Sig)
 
 			publicKey, err := crypto.UnmarshalPubkey(msg.Sig)
-			api.log.Info("Public key", "got public key", publicKey)
-
 			if err != nil {
 				return nil, err
 			}
 
-			api.log.Info("Received message", "public key", publicKey)
+			payload, err := api.service.protocol.HandleMessage(privateKey, publicKey, msg.Payload)
 
-			incomingMessage, err := api.service.protocol.HandleMessage(privateKey, publicKey, msg.Payload)
-
-			api.log.Info("Received message 3", "public key", publicKey)
-			api.log.Info("ERROR", "err", err)
 			// Ignore errors for now
 			if err == nil {
-
-				api.log.Info("Received message 4", "public key", publicKey)
-				payload := &chat.ChatProtocolMessage{}
-				err := proto.Unmarshal(incomingMessage, payload)
-
-				api.log.Info("Received message 5", "public key", publicKey)
-
-				ma := jsonpb.Marshaler{}
-				json, err := ma.MarshalToString(payload)
-				if err != nil {
-					return nil, err
-				}
-				api.log.Info("GOT JSON", "json", json)
-
-				msg.Payload = []byte(json)
+				msg.Payload = payload
 			}
 
 		}
@@ -288,24 +248,23 @@ func parsePublicKey(pk []byte) (*ecdsa.PublicKey, error) {
 	return publicKey, err
 }
 
-func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOneRPC) (hexutil.Bytes, error) {
+func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg whisper.NewMessage) (hexutil.Bytes, error) {
 
 	api.log.Info("SendOneToOneMessage", "request", msg)
 
 	// To be completely agnostic from whisper we should not be using this to store the key
-	privateKey, err := api.service.w.GetPrivateKey(msg.GetSrc())
+	privateKey, err := api.service.w.GetPrivateKey(msg.Sig)
 	if err != nil {
 		return nil, err
 	}
-	publicKey, err := parsePublicKey([]byte(msg.GetDst()))
+
+	publicKey, err := crypto.UnmarshalPubkey(msg.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
 	payload := &chat.ChatProtocolMessage{
-		Payload: &chat.ChatProtocolMessage_OneToOnePayload{
-			msg.GetPayload(),
-		},
+		Payload: msg.Payload,
 	}
 
 	marshaledPayload, err := proto.Marshal(payload)
@@ -319,11 +278,7 @@ func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg chat.OneToOne
 	}
 	api.log.Info("SendOneToOneMessage", "Created message ", protocolMessage)
 
-	whisperMessage, err := chat.DirectMessageToWhisper(&msg, protocolMessage)
-	if err != nil {
-		return nil, err
-	}
-
+	whisperMessage := chat.DirectMessageToWhisper(&msg, protocolMessage)
 	api.log.Info("SendOneToOneMessage", "whisper", whisperMessage)
 
 	return api.Post(ctx, *whisperMessage)

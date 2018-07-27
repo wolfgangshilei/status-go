@@ -22,7 +22,8 @@ message ContactUpdatePayload {
 message OneToOneRPC {
   string src = 1;
   string dst = 2;
-  OneToOnePayload payload = 3;
+  bytes payload = 3;
+  //OneToOnePayload payload = 3;
 }
 
 message ContactUpdateRPC {
@@ -33,8 +34,9 @@ message ContactUpdateRPC {
 
 // Incoming messages
 message ChatProtocolMessage {
-  oneof payload {
-    OneToOnePayload one_to_one_payload = 1;
-    ContactUpdatePayload contact_updated_payload = 2;
-  }
+  bytes payload = 1;
+  //oneof payload {
+  //  OneToOnePayload one_to_one_payload = 1;
+  //  ContactUpdatePayload contact_updated_payload = 2;
+  //}
 }
