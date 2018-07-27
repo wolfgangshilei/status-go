@@ -2,24 +2,13 @@ syntax = "proto3";
 
 package chat;
 
-message Bundle {
-  bytes identity = 1;
-  bytes signed_pre_key = 2;
-  bytes signature = 3;
-}
-
-message BundleContainer {
-  Bundle bundle = 1;
-  bytes private_signed_pre_key = 2;
-}
-
 // What is sent through the wire
 // Rename to ChatMessagePayload?
 message OneToOnePayload {
   string content = 1;
   string content_type = 2;
   string message_type = 3;
-  int64 clock_value = 4;
+  double clock_value = 4;
 }
 
 message ContactUpdatePayload {
@@ -29,6 +18,7 @@ message ContactUpdatePayload {
   string fcm_token = 4;
 }
 
+// Incoming RPC messages
 message OneToOneRPC {
   string src = 1;
   string dst = 2;
@@ -41,37 +31,10 @@ message ContactUpdateRPC {
   ContactUpdatePayload payload = 3;
 }
 
-// Sent among peers, needs to be encrypted
-message DirectMessageProtocol {
-  // Which ephemeral key has been used
-  oneof ephemeral_key {
-    bytes bundle_key = 1;
-    bytes dh_key = 2;
-    bytes sym_key = 3;
-  }
-  // The bundle used in case of x3dh
-  bytes bundle_id = 4;
-
-  bytes payload = 5;
-}
-
-// Message sent among peers
-message ProtocolMessage {
-  // An optional bundle is exchanged with each message
-
-  Bundle bundle = 1;
-  oneof message_type {
-    // One to one message encrypted
-    DirectMessageProtocol direct_message = 101;
-    // Public chats, not encrypted
-    bytes public_message = 102;
-  }
-}
-
-// Decrypted incoming message
-message ProtocolMessageIncoming {
-  oneof message_type {
-    bytes one_to_one_message = 1;
-    bytes public_message = 2;
+// Incoming messages
+message ChatProtocolMessage {
+  oneof payload {
+    OneToOnePayload one_to_one_payload = 1;
+    ContactUpdatePayload contact_updated_payload = 2;
   }
 }

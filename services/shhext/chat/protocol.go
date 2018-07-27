@@ -87,17 +87,24 @@ func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey
 
 func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 
+	p.log.Info("encryption-service", "encrypting payload", theirPublicKey)
 	// Encrypt payload
 	encryptionResponse, err := p.encryption.EncryptPayload(theirPublicKey, myIdentityKey, payload)
 	if err != nil {
+		p.log.Error("encryption-service", "error encrypting payload", err)
 		return nil, err
 	}
+
+	p.log.Info("encryption-service", "encrypted payload", theirPublicKey)
 
 	// Get a bundle
 	bundle, err := p.encryption.CreateBundle(myIdentityKey)
 	if err != nil {
+		p.log.Error("encryption-service", "error creating bundle", err)
 		return nil, err
 	}
+
+	p.log.Info("encryption-service", "got bundle", theirPublicKey)
 
 	// Build message
 	protocolMessage := &ProtocolMessage{
@@ -107,16 +114,20 @@ func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, th
 		},
 	}
 
+	p.log.Info("encryption-service", "marshaling message", theirPublicKey)
 	// marshal for sending to wire
 	marshaledMessage, err := proto.Marshal(protocolMessage)
 	if err != nil {
+		p.log.Error("encryption-service", "error marshaling message", err)
 		return nil, err
 	}
+
+	p.log.Info("encryption-service", "marshaled message", theirPublicKey)
 
 	return marshaledMessage, nil
 }
 
-func (p *ProtocolService) HandleMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) (*ProtocolMessageIncoming, error) {
+func (p *ProtocolService) HandleMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 	// Unmarshal message
 	protocolMessage := &ProtocolMessage{}
 
@@ -141,25 +152,13 @@ func (p *ProtocolService) HandleMessage(myIdentityKey *ecdsa.PrivateKey, theirPu
 	publicMessage := protocolMessage.GetPublicMessage()
 	if publicMessage != nil {
 		// Nothing to do, as already in cleartext
-		return &ProtocolMessageIncoming{
-			MessageType: &ProtocolMessageIncoming_PublicMessage{
-				publicMessage,
-			},
-		}, nil
+		return publicMessage, nil
 	}
+
 	// Decrypt message
 	directMessage := protocolMessage.GetDirectMessage()
 	if directMessage != nil {
-		decryptedMessage, err := p.decryptIncomingPayload(myIdentityKey, theirPublicKey, directMessage)
-		if err != nil {
-			return nil, err
-		}
-		return &ProtocolMessageIncoming{
-			MessageType: &ProtocolMessageIncoming_OneToOneMessage{
-				decryptedMessage,
-			},
-		}, nil
-
+		return p.decryptIncomingPayload(myIdentityKey, theirPublicKey, directMessage)
 	}
 
 	// Return error

@@ -51,11 +51,11 @@ func (s *PersistenceService) AddPublicBundle(b *Bundle) error {
 
 // Return the only bundle for now
 func (s *PersistenceService) GetAnyPrivateBundle() (*Bundle, error) {
-	var bundleContainer *BundleContainer
 	iter := s.db.NewIterator(util.BytesPrefix(privateBundleKeyPrefix), nil)
 
 	for iter.Next() {
 		value := iter.Value()
+		bundleContainer := &BundleContainer{}
 		err := proto.Unmarshal(value, bundleContainer)
 		if err != nil {
 			return nil, err

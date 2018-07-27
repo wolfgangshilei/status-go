@@ -99,6 +99,7 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.NoError(err)
 
 	bobBundle, err := s.bob.CreateBundle(bobKey)
+	bobBundle, err = s.bob.CreateBundle(bobKey)
 	s.NoError(err)
 
 	// We add bob bundle

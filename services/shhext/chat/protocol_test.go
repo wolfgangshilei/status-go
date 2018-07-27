@@ -90,21 +90,41 @@ func (s *ProtocolServiceTestSuite) TestBuildAndReadDirectMessage() {
 	aliceKey, err := crypto.GenerateKey()
 	s.NoError(err)
 
-	payload, err := proto.Marshal(&OneToOnePayload{
+	payload := OneToOnePayload{
 		Content:     "Test content",
 		ClockValue:  1,
 		ContentType: "a",
 		MessageType: "some type",
-	})
+	}
+
+	marshaledPayload, err := proto.Marshal(&payload)
 	s.NoError(err)
 
-	marshaledMsg, err := s.alice.BuildDirectMessage(aliceKey, &bobKey.PublicKey, payload)
+	// Message is sent with DH
+	marshaledMsg, err := s.alice.BuildDirectMessage(aliceKey, &bobKey.PublicKey, marshaledPayload)
 
 	s.NoError(err)
 
+	// Bob is able to decrypt the message
 	unmarshaledMsg, err := s.bob.HandleMessage(bobKey, &aliceKey.PublicKey, marshaledMsg)
+	s.NoError(err)
+
+	rawOneToOneMessage := unmarshaledMsg.GetOneToOneMessage()
+
+	s.NotNil(rawOneToOneMessage)
+
+	recoveredPayload := OneToOnePayload{}
+	err = proto.Unmarshal(rawOneToOneMessage, &recoveredPayload)
 
 	s.NoError(err)
-	s.NotNil(unmarshaledMsg.GetOneToOneMessage())
+	s.Equalf(proto.Equal(&payload, &recoveredPayload), true, "It successfully unmarshal the decrypted message")
+
+	// Bob replies with x3dh message
+
+	// Alice is able to decrypt the message
+
+	// Alice replies with symmetric key
+
+	// Bob is able to decrypt the message
 
 }

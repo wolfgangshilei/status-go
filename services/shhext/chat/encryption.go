@@ -193,6 +193,7 @@ func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecd
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeX3DH
 		symmetricKey, bundleId, ephemeralKey, err = s.keyFromX3DH(compressedDst, privateKey, payload)
+		s.log.Info("after key from  x3dh")
 		if ephemeralKey != nil {
 			compressedEphemeral := ecrypto.CompressPubkey(ephemeralKey)
 			err = s.persistence.PutSymmetricKey(compressedDst, compressedEphemeral, symmetricKey)
@@ -205,6 +206,7 @@ func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecd
 		return nil, err
 	}
 
+	s.log.Info("Trying  DH")
 	// keys from DH should not be re-used, so we don't store them
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeDH
@@ -217,7 +219,9 @@ func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecd
 		return nil, err
 	}
 
+	s.log.Info("saving")
 	encryptedPayload, err := crypto.EncryptSymmetric(symmetricKey, payload)
+	s.log.Info("encrypted payload")
 	if err != nil {
 		return nil, err
 	}
