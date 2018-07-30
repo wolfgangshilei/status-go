@@ -193,6 +193,8 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 
 	// Attempt to decrypt message, otherwise leave unchanged
 	for _, msg := range dedupMessages {
+		var privateKey *ecdsa.PrivateKey
+		var publicKey *ecdsa.PublicKey
 
 		// Msg.Dst is empty is a public message, nothing to do
 		if msg.Dst != nil {
@@ -202,25 +204,25 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 				return nil, err
 			}
 
-			privateKey, err := api.service.w.GetPrivateKey(string(keyBytes))
+			privateKey, err = api.service.w.GetPrivateKey(string(keyBytes))
 			if err != nil {
 				return nil, err
 			}
 
 			// This needs to be pushed down in the protocol message
-			publicKey, err := crypto.UnmarshalPubkey(msg.Sig)
+			publicKey, err = crypto.UnmarshalPubkey(msg.Sig)
 			if err != nil {
 				return nil, err
 			}
-
-			payload, err := api.service.protocol.HandleMessage(privateKey, publicKey, msg.Payload)
-
-			// Ignore errors for now
-			if err == nil {
-				msg.Payload = payload
-			}
-
 		}
+
+		payload, err := api.service.protocol.HandleMessage(privateKey, publicKey, msg.Payload)
+
+		// Ignore errors for now
+		if err == nil {
+			msg.Payload = payload
+		}
+
 	}
 
 	return dedupMessages, nil
@@ -244,8 +246,15 @@ func (api *PublicAPI) SendPublicMessage(ctx context.Context, msg chat.SendPublic
 		return nil, err
 	}
 
+	symKeyID, err := api.service.w.AddSymKeyFromPassword(msg.Chat)
+
 	// Enrich with transport layer info
 	whisperMessage := chat.PublicMessageToWhisper(&msg, protocolMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	whisperMessage.SymKeyID = symKeyID
 
 	// And dispatch
 	return api.Post(ctx, *whisperMessage)
