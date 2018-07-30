@@ -232,21 +232,6 @@ func (api *PublicAPI) ConfirmMessagesProcessed(messages []*whisper.Message) erro
 	return api.service.deduplicator.AddMessages(messages)
 }
 
-func parsePublicKey(pk []byte) (*ecdsa.PublicKey, error) {
-	pkBytes := hexutil.Bytes{}
-	err := pkBytes.UnmarshalText(pk)
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey, err := crypto.UnmarshalPubkey(pkBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return publicKey, err
-}
-
 func (api *PublicAPI) SendDirectMessage(ctx context.Context, msg whisper.NewMessage) (hexutil.Bytes, error) {
 
 	// To be completely agnostic from whisper we should not be using whisper to store the key

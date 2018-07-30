@@ -22,7 +22,6 @@ func NewProtocolService(encryption *EncryptionService) *ProtocolService {
 }
 
 func buildDirectMessageProtocol(e *EncryptionResponse) *DirectMessageProtocol {
-	// Can/should we return already compressed
 	ephemeralKey := crypto.CompressPubkey(e.EphemeralKey)
 	message := &DirectMessageProtocol{
 		Payload: e.EncryptedPayload,
@@ -36,7 +35,7 @@ func buildDirectMessageProtocol(e *EncryptionResponse) *DirectMessageProtocol {
 		message.EphemeralKey = &DirectMessageProtocol_BundleKey{
 			ephemeralKey,
 		}
-		message.BundleId = e.BundleId
+		message.BundleId = e.BundleID
 	case EncryptionTypeSym:
 		message.EphemeralKey = &DirectMessageProtocol_SymKey{
 			ephemeralKey,
@@ -50,9 +49,9 @@ func buildDirectMessageProtocol(e *EncryptionResponse) *DirectMessageProtocol {
 func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, msg *DirectMessageProtocol) ([]byte, error) {
 	payload := msg.GetPayload()
 	// Try Sym Key
-	symKeyId := msg.GetSymKey()
-	if symKeyId != nil {
-		decompressedKey, err := crypto.DecompressPubkey(symKeyId)
+	symKeyID := msg.GetSymKey()
+	if symKeyID != nil {
+		decompressedKey, err := crypto.DecompressPubkey(symKeyID)
 		if err != nil {
 			return nil, err
 		}
@@ -61,13 +60,13 @@ func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey
 
 	// Try X3DH
 	x3dhKey := msg.GetBundleKey()
-	bundleId := msg.GetBundleId()
+	bundleID := msg.GetBundleId()
 	if x3dhKey != nil {
-		decompressedKey, err := crypto.DecompressPubkey(symKeyId)
+		decompressedKey, err := crypto.DecompressPubkey(symKeyID)
 		if err != nil {
 			return nil, err
 		}
-		return p.encryption.DecryptWithX3DH(myIdentityKey, theirIdentityKey, decompressedKey, bundleId, payload)
+		return p.encryption.DecryptWithX3DH(myIdentityKey, theirIdentityKey, decompressedKey, bundleID, payload)
 
 	}
 
@@ -87,7 +86,6 @@ func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey
 
 func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 
-	p.log.Info("encryption-service", "encrypting payload", theirPublicKey)
 	// Encrypt payload
 	encryptionResponse, err := p.encryption.EncryptPayload(theirPublicKey, myIdentityKey, payload)
 	if err != nil {
@@ -95,16 +93,12 @@ func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, th
 		return nil, err
 	}
 
-	p.log.Info("encryption-service", "encrypted payload", theirPublicKey)
-
 	// Get a bundle
 	bundle, err := p.encryption.CreateBundle(myIdentityKey)
 	if err != nil {
 		p.log.Error("encryption-service", "error creating bundle", err)
 		return nil, err
 	}
-
-	p.log.Info("encryption-service", "got bundle", theirPublicKey)
 
 	// Build message
 	protocolMessage := &ProtocolMessage{
@@ -114,15 +108,12 @@ func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, th
 		},
 	}
 
-	p.log.Info("encryption-service", "marshaling message", theirPublicKey)
 	// marshal for sending to wire
 	marshaledMessage, err := proto.Marshal(protocolMessage)
 	if err != nil {
 		p.log.Error("encryption-service", "error marshaling message", err)
 		return nil, err
 	}
-
-	p.log.Info("encryption-service", "marshaled message", theirPublicKey)
 
 	return marshaledMessage, nil
 }

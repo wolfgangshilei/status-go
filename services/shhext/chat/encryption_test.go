@@ -98,12 +98,16 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	aliceKey, err := crypto.GenerateKey()
 	s.NoError(err)
 
-	bobBundle, err := s.bob.CreateBundle(bobKey)
-	bobBundle, err = s.bob.CreateBundle(bobKey)
+	// Create a couple of bundles
+	bobBundle1, err := s.bob.CreateBundle(bobKey)
+	s.NoError(err)
+	bobBundle2, err := s.bob.CreateBundle(bobKey)
 	s.NoError(err)
 
+	s.NotEqualf(bobBundle1, bobBundle2, "It creates different bundles")
+
 	// We add bob bundle
-	err = s.alice.ProcessPublicBundle(bobBundle)
+	err = s.alice.ProcessPublicBundle(bobBundle2)
 	s.NoError(err)
 
 	// We send a message using the bundle
@@ -120,11 +124,11 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.Equalf(encryptionResponse1.EncryptionType, EncryptionTypeX3DH, "It sets the encryption type to X3DH")
 
 	// Bob is able to decrypt it using the bundle
-	bundleId := bobBundle.GetSignedPreKey()
+	bundleID := bobBundle2.GetSignedPreKey()
 
-	s.Equalf(encryptionResponse1.BundleId, bundleId, "It sets the bundle id")
+	s.Equalf(encryptionResponse1.BundleID, bundleID, "It sets the bundle id")
 
-	decryptedPayload1, err := s.bob.DecryptWithX3DH(bobKey, &aliceKey.PublicKey, ephemeralKey1, bundleId, cyphertext1)
+	decryptedPayload1, err := s.bob.DecryptWithX3DH(bobKey, &aliceKey.PublicKey, ephemeralKey1, bundleID, cyphertext1)
 	s.NoError(err)
 	s.Equalf(cleartext, decryptedPayload1, "It correctly decrypts the payload using X3DH")
 

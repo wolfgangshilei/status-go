@@ -43,7 +43,6 @@ type Service struct {
 	nodeID       *ecdsa.PrivateKey
 	deduplicator *dedup.Deduplicator
 	protocol     *chat.ProtocolService
-	encryption   *chat.EncryptionService
 	debug        bool
 }
 

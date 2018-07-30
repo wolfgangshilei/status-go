@@ -11,21 +11,21 @@ import (
 	"github.com/status-im/status-go/services/shhext/chat/crypto"
 )
 
-var KeyNotFoundError = errors.New("Key not found")
+var ErrKeyNotFound = errors.New("Key not found")
 
 type EncryptionService struct {
 	log         log.Logger
 	persistence PersistenceServiceInterface
 }
 
-func NewEncryptionService(p *PersistenceService) *EncryptionService {
+func NewEncryptionService(p PersistenceServiceInterface) *EncryptionService {
 	return &EncryptionService{
 		log:         log.New("package", "status-go/services/sshext.chat"),
 		persistence: p,
 	}
 }
 
-func (s *EncryptionService) keyFromX3DH(theirPublicKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey, payload []byte) ([]byte, []byte, *ecdsa.PublicKey, error) {
+func (s *EncryptionService) keyFromX3DH(theirPublicKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey) ([]byte, []byte, *ecdsa.PublicKey, error) {
 
 	bundle, err := s.persistence.GetPublicBundle(theirPublicKey)
 
@@ -37,12 +37,12 @@ func (s *EncryptionService) keyFromX3DH(theirPublicKey *ecdsa.PublicKey, myIdent
 		return nil, nil, nil, nil
 	}
 
-	payload, ephemeralKey, err := PerformActiveX3DH(bundle, myIdentityKey)
+	key, ephemeralKey, err := PerformActiveX3DH(bundle, myIdentityKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	return payload, bundle.GetSignedPreKey(), ephemeralKey, nil
+	return key, bundle.GetSignedPreKey(), ephemeralKey, nil
 }
 
 func (s *EncryptionService) keyFromDH(pk *ecdsa.PublicKey, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, *ecdsa.PublicKey, error) {
@@ -83,7 +83,7 @@ func (s *EncryptionService) DecryptSymmetricPayload(src *ecdsa.PublicKey, epheme
 	}
 
 	if symmetricKey == nil {
-		return nil, KeyNotFoundError
+		return nil, ErrKeyNotFound
 	}
 
 	return crypto.DecryptSymmetric(symmetricKey, payload)
@@ -104,8 +104,8 @@ func (s *EncryptionService) DecryptWithDH(myIdentityKey *ecdsa.PrivateKey, their
 }
 
 // Decrypt message sent with a X3DH key exchange, store the key for future exchanges
-func (s *EncryptionService) DecryptWithX3DH(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, theirEphemeralKey *ecdsa.PublicKey, ourBundleId []byte, payload []byte) ([]byte, error) {
-	myBundle, err := s.persistence.GetPrivateBundle(ourBundleId)
+func (s *EncryptionService) DecryptWithX3DH(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, theirEphemeralKey *ecdsa.PublicKey, ourBundleID []byte, payload []byte) ([]byte, error) {
+	myBundle, err := s.persistence.GetPrivateBundle(ourBundleID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ type EncryptionResponse struct {
 	EphemeralKey     *ecdsa.PublicKey
 	EncryptionType   string
 	EncryptedPayload []byte
-	BundleId         []byte
+	BundleID         []byte
 }
 
 func (s *EncryptionService) ProcessPublicBundle(b *Bundle) error {
@@ -171,7 +171,7 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 	// The ephemeral key used to encrypt the payload
 	var ourEphemeralKey *ecdsa.PublicKey
 	// The bundle used
-	var bundleId []byte
+	var bundleID []byte
 
 	encryptionType := EncryptionTypeSym
 
@@ -186,7 +186,7 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 	// If not there try with a bundle and store the key
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeX3DH
-		symmetricKey, bundleId, ourEphemeralKey, err = s.keyFromX3DH(theirIdentityKey, myIdentityKey, payload)
+		symmetricKey, bundleID, ourEphemeralKey, err = s.keyFromX3DH(theirIdentityKey, myIdentityKey)
 		if ourEphemeralKey != nil {
 			err = s.persistence.AddSymmetricKey(theirIdentityKey, ourEphemeralKey, symmetricKey)
 			if err != nil {
@@ -219,6 +219,6 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 		EncryptedPayload: encryptedPayload,
 		EphemeralKey:     ourEphemeralKey,
 		EncryptionType:   encryptionType,
-		BundleId:         bundleId,
+		BundleID:         bundleID,
 	}, nil
 }
