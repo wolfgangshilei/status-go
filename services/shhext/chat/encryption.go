@@ -8,12 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/status-im/status-go/crypto"
+	"github.com/status-im/status-go/services/shhext/chat/crypto"
 )
-
-var publicKeyPrefix = []byte{0x10, 0x11}
-var privateBundleKeyPrefix = []byte{0x10, 0x12}
-var symmetricKeyKeyPrefix = []byte{0x10, 0x13}
 
 var KeyNotFoundError = errors.New("Key not found")
 
@@ -63,7 +59,9 @@ func (s *EncryptionService) CreateBundle(privateKey *ecdsa.PrivateKey) (*Bundle,
 	if bundle != nil {
 		return bundle, nil
 	}
-	// needs transaction/mutex
+
+	// needs transaction/mutex to avoid creating multiple bundles
+	// although not a problem
 	bundleContainer, err := NewBundleContainer(privateKey)
 	if err != nil {
 		return nil, err
@@ -80,17 +78,15 @@ func (s *EncryptionService) CreateBundle(privateKey *ecdsa.PrivateKey) (*Bundle,
 func (s *EncryptionService) DecryptSymmetricPayload(src *ecdsa.PublicKey, ephemeralKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 
 	symmetricKey, err := s.persistence.GetSymmetricKey(src, ephemeralKey)
+	if err != nil {
+		return nil, err
+	}
 
 	if symmetricKey == nil {
 		return nil, KeyNotFoundError
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
 	return crypto.DecryptSymmetric(symmetricKey, payload)
-
 }
 
 // Decrypt message sent with a DH key exchange, throw away the key after decryption

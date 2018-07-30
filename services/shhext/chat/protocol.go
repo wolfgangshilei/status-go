@@ -3,7 +3,7 @@ package chat
 import (
 	"crypto/ecdsa"
 	"errors"
-	//	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"

@@ -23,6 +23,10 @@ type PersistenceServiceInterface interface {
 	AddSymmetricKey(*ecdsa.PublicKey, *ecdsa.PublicKey, []byte) error
 }
 
+var publicKeyPrefix = []byte{0x10, 0x11}
+var privateBundleKeyPrefix = []byte{0x10, 0x12}
+var symmetricKeyKeyPrefix = []byte{0x10, 0x13}
+
 type PersistenceService struct {
 	log log.Logger
 	db  *leveldb.DB
