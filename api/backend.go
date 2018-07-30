@@ -273,8 +273,9 @@ func (b *StatusBackend) registerHandlers() error {
 		return b.AccountManager().Accounts()
 	})
 
+	// These methods are unsupported because we want to guard calling them with a password.
+	// They're not supported to be called directly, only via a binding.
 	rpcClient.RegisterHandler(params.SendTransactionMethodName, unsupportedMethodHandler)
-
 	rpcClient.RegisterHandler(params.PersonalSignMethodName, unsupportedMethodHandler)
 	rpcClient.RegisterHandler(params.PersonalRecoverMethodName, unsupportedMethodHandler)
 

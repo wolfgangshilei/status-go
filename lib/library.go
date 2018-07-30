@@ -214,9 +214,10 @@ func Logout() *C.char {
 
 // SignMessage unmarshals rpc params {data, address, password} and passes
 // them onto backend.SignMessage
-// nolint: deadcode
+//export SignMessage
 func SignMessage(rpcParams *C.char, password *C.char) *C.char {
-	params, err := personal.UnmarshalSignRPCParams(C.GoString(rpcParams))
+	var params personal.SignParams
+	err := json.Unmarshal([]byte(C.GoString(rpcParams)), &params)
 	if err != nil {
 		result := sign.NewErrResult(err)
 		return prepareSignResponse(result)
@@ -227,9 +228,10 @@ func SignMessage(rpcParams *C.char, password *C.char) *C.char {
 
 // Recover unmarshals rpc params {signDataString, signedData} and passes
 // them onto backend.
-// nolint: deadcode
+//export Recover
 func Recover(rpcParams *C.char) *C.char {
-	params, err := personal.UnmarshalRecoverRPCParams(C.GoString(rpcParams))
+	var params personal.RecoverParams
+	err := json.Unmarshal([]byte(C.GoString(rpcParams)), &params)
 	if err != nil {
 		result := sign.NewErrResult(err)
 		return prepareSignResponse(result)
@@ -239,13 +241,14 @@ func Recover(rpcParams *C.char) *C.char {
 }
 
 // SendTransaction converts RPC args and calls backend.SendTransaction
-// nolint: deadcode
+//export SendTransaction
 func SendTransaction(txArgsJSON, password *C.char) *C.char {
-	txArgs, err := transactions.UnmarshalSendTxRPCParams(C.GoString(txArgsJSON))
+	var params transactions.SendTxArgs
+	err := json.Unmarshal([]byte(C.GoString(txArgsJSON)), &params)
 	if err != nil {
 		return prepareSignResponse(sign.NewErrResult(err))
 	}
-	result := statusBackend.SendTransaction(txArgs, C.GoString(password))
+	result := statusBackend.SendTransaction(params, C.GoString(password))
 	return prepareSignResponse(result)
 }
 
