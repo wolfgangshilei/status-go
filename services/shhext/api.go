@@ -116,7 +116,6 @@ func NewPublicAPI(s *Service) *PublicAPI {
 
 // Post shamelessly copied from whisper codebase with slight modifications.
 func (api *PublicAPI) Post(ctx context.Context, req whisper.NewMessage) (hash hexutil.Bytes, err error) {
-	api.log.Info("Post", "request", req)
 	hash, err = api.publicAPI.Post(ctx, req)
 	if err == nil {
 		var envHash common.Hash

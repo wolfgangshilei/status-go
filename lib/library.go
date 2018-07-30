@@ -76,30 +76,6 @@ func CreateX3DHBundle() *C.char {
 	return cstr
 }
 
-//Encrypt some arbitrary data
-//export EncryptSymmetric
-func EncryptSymmetric(symKeyId *C.char, payload *C.char) *C.char {
-  encryptedPayload, err := statusBackend.EncryptSymmetric(C.GoString(symKeyId), C.GoString(payload))
-  if err != nil {
-		return makeJSONResponse(err)
-  }
-  cPayload := C.CString(string(encryptedPayload))
-  defer C.free(unsafe.Pointer(cPayload))
-  return cPayload
-}
-
-//Decrypt some arbitrary data
-//export DecryptSymmetric
-func DecryptSymmetric(symKeyId *C.char, payload *C.char) *C.char {
-  encryptedPayload, err := statusBackend.DecryptSymmetric(C.GoString(symKeyId), C.GoString(payload))
-  if err != nil {
-		return makeJSONResponse(err)
-  }
-  cPayload := C.CString(string(encryptedPayload))
-  defer C.free(unsafe.Pointer(cPayload))
-  return cPayload
-}
-
 //ValidateNodeConfig validates config for status node
 //export ValidateNodeConfig
 func ValidateNodeConfig(configJSON *C.char) *C.char {
