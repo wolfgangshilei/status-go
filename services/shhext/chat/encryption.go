@@ -45,11 +45,6 @@ func (s *EncryptionService) keyFromX3DH(theirPublicKey *ecdsa.PublicKey, myIdent
 	return key, bundle.GetSignedPreKey(), ephemeralKey, nil
 }
 
-func (s *EncryptionService) keyFromDH(pk *ecdsa.PublicKey, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, *ecdsa.PublicKey, error) {
-
-	return PerformActiveDH(pk)
-}
-
 func (s *EncryptionService) CreateBundle(privateKey *ecdsa.PrivateKey) (*Bundle, error) {
 	bundle, err := s.persistence.GetAnyPrivateBundle()
 	if err != nil {
@@ -187,6 +182,10 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeX3DH
 		symmetricKey, bundleID, ourEphemeralKey, err = s.keyFromX3DH(theirIdentityKey, myIdentityKey)
+		if err != nil {
+			return nil, err
+		}
+
 		if ourEphemeralKey != nil {
 			err = s.persistence.AddSymmetricKey(theirIdentityKey, ourEphemeralKey, symmetricKey)
 			if err != nil {
@@ -201,7 +200,7 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 	// keys from DH should not be re-used, so we don't store them
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeDH
-		symmetricKey, ourEphemeralKey, err = s.keyFromDH(theirIdentityKey, myIdentityKey, payload)
+		symmetricKey, ourEphemeralKey, err = PerformActiveDH(theirIdentityKey)
 		if err != nil {
 			return nil, err
 		}

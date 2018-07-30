@@ -62,7 +62,7 @@ func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey
 	x3dhKey := msg.GetBundleKey()
 	bundleID := msg.GetBundleId()
 	if x3dhKey != nil {
-		decompressedKey, err := crypto.DecompressPubkey(symKeyID)
+		decompressedKey, err := crypto.DecompressPubkey(x3dhKey)
 		if err != nil {
 			return nil, err
 		}

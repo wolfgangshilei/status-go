@@ -25,7 +25,7 @@ type PersistenceServiceInterface interface {
 
 var publicKeyPrefix = []byte{0x10, 0x11}
 var privateBundleKeyPrefix = []byte{0x10, 0x12}
-var symmetricKeyKeyPrefix = []byte{0x10, 0x13}
+var symmetricKeyPrefix = []byte{0x10, 0x13}
 
 type PersistenceService struct {
 	log log.Logger
@@ -40,8 +40,8 @@ func privateBundleKey(key []byte) []byte {
 	return append(privateBundleKeyPrefix, key...)
 }
 
-func symmetricKeyKey(key []byte) []byte {
-	return append(symmetricKeyKeyPrefix, key...)
+func symmetricKey(key []byte) []byte {
+	return append(symmetricKeyPrefix, key...)
 }
 
 func NewPersistenceService(db *leveldb.DB) *PersistenceService {
@@ -142,9 +142,9 @@ func (s *PersistenceService) AddPrivateBundle(b *BundleContainer) error {
 func (s *PersistenceService) GetAnySymmetricKey(identityKey *ecdsa.PublicKey) ([]byte, *ecdsa.PublicKey, error) {
 	pk := crypto.CompressPubkey(identityKey)
 
-	iter := s.db.NewIterator(util.BytesPrefix(append(symmetricKeyKeyPrefix, pk...)), nil)
+	iter := s.db.NewIterator(util.BytesPrefix(append(symmetricKeyPrefix, pk...)), nil)
 	if iter.First() {
-		key := iter.Key()[len(symmetricKeyKeyPrefix)+len(pk):]
+		key := iter.Key()[len(symmetricKeyPrefix)+len(pk):]
 		ephemeralKey, err := crypto.DecompressPubkey(key)
 		if err != nil {
 			return nil, nil, err
@@ -161,7 +161,7 @@ func (s *PersistenceService) GetSymmetricKey(identityKey *ecdsa.PublicKey, ephem
 	pkBytes := crypto.CompressPubkey(identityKey)
 	ekBytes := crypto.CompressPubkey(ephemeralKey)
 
-	return s.db.Get(symmetricKeyKey(append(pkBytes, ekBytes...)), nil)
+	return s.db.Get(symmetricKey(append(pkBytes, ekBytes...)), nil)
 }
 
 func (s *PersistenceService) AddSymmetricKey(identityKey *ecdsa.PublicKey, ephemeralKey *ecdsa.PublicKey, key []byte) error {
@@ -169,5 +169,5 @@ func (s *PersistenceService) AddSymmetricKey(identityKey *ecdsa.PublicKey, ephem
 
 	ekBytes := crypto.CompressPubkey(ephemeralKey)
 
-	return s.db.Put(symmetricKeyKey(append(pkBytes, ekBytes...)), key, nil)
+	return s.db.Put(symmetricKey(append(pkBytes, ekBytes...)), key, nil)
 }
