@@ -84,6 +84,38 @@ func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey
 	return nil, errors.New("No key specified")
 }
 
+func (p *ProtocolService) addBundleAndMarshal(myIdentityKey *ecdsa.PrivateKey, msg *ProtocolMessage) ([]byte, error) {
+	// Get a bundle
+	bundle, err := p.encryption.CreateBundle(myIdentityKey)
+	if err != nil {
+		p.log.Error("encryption-service", "error creating bundle", err)
+		return nil, err
+	}
+
+	msg.Bundle = bundle
+
+	// marshal for sending to wire
+	marshaledMessage, err := proto.Marshal(msg)
+	if err != nil {
+		p.log.Error("encryption-service", "error marshaling message", err)
+		return nil, err
+	}
+
+	return marshaledMessage, nil
+}
+
+func (p *ProtocolService) BuildPublicMessage(myIdentityKey *ecdsa.PrivateKey, payload []byte) ([]byte, error) {
+
+	// Build message not encrypted
+	protocolMessage := &ProtocolMessage{
+		MessageType: &ProtocolMessage_PublicMessage{
+			payload,
+		},
+	}
+
+	return p.addBundleAndMarshal(myIdentityKey, protocolMessage)
+}
+
 func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
 
 	// Encrypt payload
@@ -93,29 +125,15 @@ func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, th
 		return nil, err
 	}
 
-	// Get a bundle
-	bundle, err := p.encryption.CreateBundle(myIdentityKey)
-	if err != nil {
-		p.log.Error("encryption-service", "error creating bundle", err)
-		return nil, err
-	}
-
 	// Build message
 	protocolMessage := &ProtocolMessage{
-		Bundle: bundle,
 		MessageType: &ProtocolMessage_DirectMessage{
 			DirectMessage: buildDirectMessageProtocol(encryptionResponse),
 		},
 	}
 
-	// marshal for sending to wire
-	marshaledMessage, err := proto.Marshal(protocolMessage)
-	if err != nil {
-		p.log.Error("encryption-service", "error marshaling message", err)
-		return nil, err
-	}
+	return p.addBundleAndMarshal(myIdentityKey, protocolMessage)
 
-	return marshaledMessage, nil
 }
 
 func (p *ProtocolService) HandleMessage(myIdentityKey *ecdsa.PrivateKey, theirPublicKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {

@@ -232,7 +232,26 @@ func (api *PublicAPI) ConfirmMessagesProcessed(messages []*whisper.Message) erro
 	return api.service.deduplicator.AddMessages(messages)
 }
 
-func (api *PublicAPI) SendDirectMessage(ctx context.Context, msg whisper.NewMessage) (hexutil.Bytes, error) {
+func (api *PublicAPI) SendPublicMessage(ctx context.Context, msg chat.SendPublicMessageRPC) (hexutil.Bytes, error) {
+	privateKey, err := api.service.w.GetPrivateKey(msg.Sig)
+	if err != nil {
+		return nil, err
+	}
+
+	// This is transport layer agnostic
+	protocolMessage, err := api.service.protocol.BuildPublicMessage(privateKey, msg.Payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich with transport layer info
+	whisperMessage := chat.PublicMessageToWhisper(&msg, protocolMessage)
+
+	// And dispatch
+	return api.Post(ctx, *whisperMessage)
+}
+
+func (api *PublicAPI) SendDirectMessage(ctx context.Context, msg chat.SendDirectMessageRPC) (hexutil.Bytes, error) {
 
 	// To be completely agnostic from whisper we should not be using whisper to store the key
 	privateKey, err := api.service.w.GetPrivateKey(msg.Sig)
@@ -240,7 +259,7 @@ func (api *PublicAPI) SendDirectMessage(ctx context.Context, msg whisper.NewMess
 		return nil, err
 	}
 
-	publicKey, err := crypto.UnmarshalPubkey(msg.PublicKey)
+	publicKey, err := crypto.UnmarshalPubkey(msg.PubKey)
 	if err != nil {
 		return nil, err
 	}

@@ -23,16 +23,18 @@ message DirectMessageProtocol {
   // The bundle used in case of x3dh
   bytes bundle_id = 4;
 
+  // The encrypted payload
   bytes payload = 5;
 }
 
 message ProtocolMessage {
   // An optional bundle is exchanged with each message
-
   Bundle bundle = 1;
+
   oneof message_type {
     // One to one message encrypted
     DirectMessageProtocol direct_message = 101;
+
     // Public chats, not encrypted
     bytes public_message = 102;
   }
