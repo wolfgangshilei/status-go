@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	"github.com/golang/protobuf/proto"
 	"github.com/status-im/status-go/services/shhext/chat"
 )
 
@@ -192,13 +191,13 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 	}
 
 	dedupMessages := api.service.deduplicator.Deduplicate(msgs)
-	if err != nil {
-		return nil, err
-	}
 
+	// Attempt to decrypt message, otherwise leave unchanged
 	for _, msg := range dedupMessages {
 
+		// Msg.Dst is empty is a public message, nothing to do
 		if msg.Dst != nil {
+			// There's probably a better way to do this
 			keyBytes, err := hexutil.Bytes(msg.Dst).MarshalText()
 			if err != nil {
 				return nil, err
@@ -209,6 +208,7 @@ func (api *PublicAPI) GetNewFilterMessages(filterID string) ([]*whisper.Message,
 				return nil, err
 			}
 
+			// This needs to be pushed down in the protocol message
 			publicKey, err := crypto.UnmarshalPubkey(msg.Sig)
 			if err != nil {
 				return nil, err
@@ -248,11 +248,9 @@ func parsePublicKey(pk []byte) (*ecdsa.PublicKey, error) {
 	return publicKey, err
 }
 
-func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg whisper.NewMessage) (hexutil.Bytes, error) {
+func (api *PublicAPI) SendDirectMessage(ctx context.Context, msg whisper.NewMessage) (hexutil.Bytes, error) {
 
-	api.log.Info("SendOneToOneMessage", "request", msg)
-
-	// To be completely agnostic from whisper we should not be using this to store the key
+	// To be completely agnostic from whisper we should not be using whisper to store the key
 	privateKey, err := api.service.w.GetPrivateKey(msg.Sig)
 	if err != nil {
 		return nil, err
@@ -263,24 +261,16 @@ func (api *PublicAPI) SendOneToOneMessage(ctx context.Context, msg whisper.NewMe
 		return nil, err
 	}
 
-	payload := &chat.ChatProtocolMessage{
-		Payload: msg.Payload,
-	}
-
-	marshaledPayload, err := proto.Marshal(payload)
+	// This is transport layer agnostic
+	protocolMessage, err := api.service.protocol.BuildDirectMessage(privateKey, publicKey, msg.Payload)
 	if err != nil {
 		return nil, err
 	}
 
-	protocolMessage, err := api.service.protocol.BuildDirectMessage(privateKey, publicKey, marshaledPayload)
-	if err != nil {
-		return nil, err
-	}
-	api.log.Info("SendOneToOneMessage", "Created message ", protocolMessage)
-
+	// Enrich with transport layer info
 	whisperMessage := chat.DirectMessageToWhisper(&msg, protocolMessage)
-	api.log.Info("SendOneToOneMessage", "whisper", whisperMessage)
 
+	// And dispatch
 	return api.Post(ctx, *whisperMessage)
 }
 

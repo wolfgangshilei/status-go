@@ -19,7 +19,7 @@ var KeyNotFoundError = errors.New("Key not found")
 
 type EncryptionService struct {
 	log         log.Logger
-	persistence *PersistenceService
+	persistence PersistenceServiceInterface
 }
 
 func NewEncryptionService(p *PersistenceService) *EncryptionService {
@@ -29,8 +29,9 @@ func NewEncryptionService(p *PersistenceService) *EncryptionService {
 	}
 }
 
-func (s *EncryptionService) keyFromX3DH(pk []byte, privateKey *ecdsa.PrivateKey, payload []byte) ([]byte, []byte, *ecdsa.PublicKey, error) {
-	bundle, err := s.persistence.GetPublicBundle(pk)
+func (s *EncryptionService) keyFromX3DH(theirPublicKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey, payload []byte) ([]byte, []byte, *ecdsa.PublicKey, error) {
+
+	bundle, err := s.persistence.GetPublicBundle(theirPublicKey)
 
 	if err != nil {
 		return nil, nil, nil, err
@@ -40,7 +41,7 @@ func (s *EncryptionService) keyFromX3DH(pk []byte, privateKey *ecdsa.PrivateKey,
 		return nil, nil, nil, nil
 	}
 
-	payload, ephemeralKey, err := PerformActiveX3DH(bundle, privateKey)
+	payload, ephemeralKey, err := PerformActiveX3DH(bundle, myIdentityKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -77,10 +78,8 @@ func (s *EncryptionService) CreateBundle(privateKey *ecdsa.PrivateKey) (*Bundle,
 }
 
 func (s *EncryptionService) DecryptSymmetricPayload(src *ecdsa.PublicKey, ephemeralKey *ecdsa.PublicKey, payload []byte) ([]byte, error) {
-	compressedSrc := ecrypto.CompressPubkey(src)
-	compressedEphemeral := ecrypto.CompressPubkey(ephemeralKey)
 
-	symmetricKey, err := s.persistence.GetSymmetricKey(compressedSrc, compressedEphemeral)
+	symmetricKey, err := s.persistence.GetSymmetricKey(src, ephemeralKey)
 
 	if symmetricKey == nil {
 		return nil, KeyNotFoundError
@@ -137,9 +136,9 @@ func (s *EncryptionService) DecryptWithX3DH(myIdentityKey *ecdsa.PrivateKey, the
 	}
 
 	// And we store the key for later use
-	err = s.persistence.PutSymmetricKey(
-		ecrypto.CompressPubkey(theirIdentityKey),
-		ecrypto.CompressPubkey(theirEphemeralKey),
+	err = s.persistence.AddSymmetricKey(
+		theirIdentityKey,
+		theirEphemeralKey,
 		key)
 
 	if err != nil {
@@ -171,32 +170,29 @@ func (s *EncryptionService) ProcessPublicBundle(b *Bundle) error {
 	return s.persistence.AddPublicBundle(b)
 }
 
-func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecdsa.PrivateKey, payload []byte) (*EncryptionResponse, error) {
+func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey, payload []byte) (*EncryptionResponse, error) {
 	var symmetricKey []byte
-	var ephemeralKey *ecdsa.PublicKey
+	// The ephemeral key used to encrypt the payload
+	var ourEphemeralKey *ecdsa.PublicKey
+	// The bundle used
 	var bundleId []byte
-	encryptionType := EncryptionTypeSym
 
-	compressedDst := ecrypto.CompressPubkey(dst)
+	encryptionType := EncryptionTypeSym
 
 	// This should be in a transaction or similar
 
-	s.log.Info("Getting  symmetric")
 	// Check if we have already a key established
-	symmetricKey, ephemeralKey, err := s.persistence.GetAnySymmetricKey(compressedDst)
+	symmetricKey, ourEphemeralKey, err := s.persistence.GetAnySymmetricKey(theirIdentityKey)
 	if err != nil {
 		return nil, err
 	}
 
-	s.log.Info("Trying  x3dh")
 	// If not there try with a bundle and store the key
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeX3DH
-		symmetricKey, bundleId, ephemeralKey, err = s.keyFromX3DH(compressedDst, privateKey, payload)
-		s.log.Info("after key from  x3dh")
-		if ephemeralKey != nil {
-			compressedEphemeral := ecrypto.CompressPubkey(ephemeralKey)
-			err = s.persistence.PutSymmetricKey(compressedDst, compressedEphemeral, symmetricKey)
+		symmetricKey, bundleId, ourEphemeralKey, err = s.keyFromX3DH(theirIdentityKey, myIdentityKey, payload)
+		if ourEphemeralKey != nil {
+			err = s.persistence.AddSymmetricKey(theirIdentityKey, ourEphemeralKey, symmetricKey)
 			if err != nil {
 				return nil, err
 			}
@@ -206,11 +202,10 @@ func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecd
 		return nil, err
 	}
 
-	s.log.Info("Trying  DH")
 	// keys from DH should not be re-used, so we don't store them
 	if symmetricKey == nil {
 		encryptionType = EncryptionTypeDH
-		symmetricKey, ephemeralKey, err = s.keyFromDH(dst, privateKey, payload)
+		symmetricKey, ourEphemeralKey, err = s.keyFromDH(theirIdentityKey, myIdentityKey, payload)
 		if err != nil {
 			return nil, err
 		}
@@ -219,16 +214,14 @@ func (s *EncryptionService) EncryptPayload(dst *ecdsa.PublicKey, privateKey *ecd
 		return nil, err
 	}
 
-	s.log.Info("saving")
 	encryptedPayload, err := crypto.EncryptSymmetric(symmetricKey, payload)
-	s.log.Info("encrypted payload")
 	if err != nil {
 		return nil, err
 	}
 
 	return &EncryptionResponse{
 		EncryptedPayload: encryptedPayload,
-		EphemeralKey:     ephemeralKey,
+		EphemeralKey:     ourEphemeralKey,
 		EncryptionType:   encryptionType,
 		BundleId:         bundleId,
 	}, nil

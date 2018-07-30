@@ -109,22 +109,11 @@ func (s *ProtocolServiceTestSuite) TestBuildAndReadDirectMessage() {
 	unmarshaledMsg, err := s.bob.HandleMessage(bobKey, &aliceKey.PublicKey, marshaledMsg)
 	s.NoError(err)
 
-	rawOneToOneMessage := unmarshaledMsg.GetOneToOneMessage()
-
-	s.NotNil(rawOneToOneMessage)
+	s.NotNil(unmarshaledMsg)
 
 	recoveredPayload := OneToOnePayload{}
-	err = proto.Unmarshal(rawOneToOneMessage, &recoveredPayload)
+	err = proto.Unmarshal(unmarshaledMsg, &recoveredPayload)
 
 	s.NoError(err)
 	s.Equalf(proto.Equal(&payload, &recoveredPayload), true, "It successfully unmarshal the decrypted message")
-
-	// Bob replies with x3dh message
-
-	// Alice is able to decrypt the message
-
-	// Alice replies with symmetric key
-
-	// Bob is able to decrypt the message
-
 }

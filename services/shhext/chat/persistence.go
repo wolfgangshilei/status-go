@@ -2,13 +2,26 @@ package chat
 
 import (
 	"crypto/ecdsa"
-	ecrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb"
 	lerrors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
+
+type PersistenceServiceInterface interface {
+	GetPublicBundle(*ecdsa.PublicKey) (*Bundle, error)
+	AddPublicBundle(*Bundle) error
+
+	GetAnyPrivateBundle() (*Bundle, error)
+	GetPrivateBundle([]byte) (*BundleContainer, error)
+	AddPrivateBundle(*BundleContainer) error
+
+	GetAnySymmetricKey(*ecdsa.PublicKey) ([]byte, *ecdsa.PublicKey, error)
+	GetSymmetricKey(*ecdsa.PublicKey, *ecdsa.PublicKey) ([]byte, error)
+	AddSymmetricKey(*ecdsa.PublicKey, *ecdsa.PublicKey, []byte) error
+}
 
 type PersistenceService struct {
 	log log.Logger
@@ -49,7 +62,31 @@ func (s *PersistenceService) AddPublicBundle(b *Bundle) error {
 	return nil
 }
 
-// Return the only bundle for now
+// Get someone else's bundle given their identity
+func (s *PersistenceService) GetPublicBundle(publicKey *ecdsa.PublicKey) (*Bundle, error) {
+	key := crypto.CompressPubkey(publicKey)
+
+	byteBundle, err := s.db.Get(publicBundleKey(key), nil)
+
+	// Ignore not found errors
+	if err != nil && err != lerrors.ErrNotFound {
+		return nil, err
+	}
+
+	if byteBundle == nil {
+		return nil, nil
+	}
+
+	bundle := &Bundle{}
+	err = proto.Unmarshal(byteBundle, bundle)
+	if err != nil {
+		return nil, err
+	}
+
+	return bundle, nil
+}
+
+// Get the first private bundle
 func (s *PersistenceService) GetAnyPrivateBundle() (*Bundle, error) {
 	iter := s.db.NewIterator(util.BytesPrefix(privateBundleKeyPrefix), nil)
 
@@ -60,6 +97,7 @@ func (s *PersistenceService) GetAnyPrivateBundle() (*Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		iter.Release()
 		return bundleContainer.GetBundle(), nil
 
@@ -67,6 +105,7 @@ func (s *PersistenceService) GetAnyPrivateBundle() (*Bundle, error) {
 	return nil, nil
 }
 
+// Get private bundle by id
 func (s *PersistenceService) GetPrivateBundle(bundleId []byte) (*BundleContainer, error) {
 	byteBundle, err := s.db.Get(append(privateBundleKeyPrefix, bundleId...), nil)
 	if err != nil {
@@ -80,31 +119,7 @@ func (s *PersistenceService) GetPrivateBundle(bundleId []byte) (*BundleContainer
 	return &bundleContainer, err
 }
 
-// Pick any established key, any key, and return the ephemeral key used
-func (s *PersistenceService) GetAnySymmetricKey(pk []byte) ([]byte, *ecdsa.PublicKey, error) {
-	iter := s.db.NewIterator(util.BytesPrefix(append(symmetricKeyKeyPrefix, pk...)), nil)
-	for iter.Next() {
-		key := iter.Key()[len(symmetricKeyKeyPrefix)+len(pk):]
-		ephemeralKey, err := ecrypto.DecompressPubkey(key)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		value := iter.Value()
-		iter.Release()
-		return value, ephemeralKey, nil
-	}
-	return nil, nil, nil
-}
-
-func (s *PersistenceService) GetSymmetricKey(dst []byte, id []byte) ([]byte, error) {
-	return s.db.Get(symmetricKeyKey(append(dst, id...)), nil)
-}
-
-func (s *PersistenceService) PutSymmetricKey(dst []byte, id []byte, key []byte) error {
-	return s.db.Put(symmetricKeyKey(append(dst, id...)), key, nil)
-}
-
+// Add your own bundle
 func (s *PersistenceService) AddPrivateBundle(b *BundleContainer) error {
 	marshaledBundle, err := proto.Marshal(b)
 	if err != nil {
@@ -119,23 +134,36 @@ func (s *PersistenceService) AddPrivateBundle(b *BundleContainer) error {
 	return nil
 }
 
-func (s *PersistenceService) GetPublicBundle(pk []byte) (*Bundle, error) {
-	byteBundle, err := s.db.Get(publicBundleKey(pk), nil)
+// Pick any established key, any key, and return the ephemeral key used
+func (s *PersistenceService) GetAnySymmetricKey(identityKey *ecdsa.PublicKey) ([]byte, *ecdsa.PublicKey, error) {
+	pk := crypto.CompressPubkey(identityKey)
 
-	if err != nil && err != lerrors.ErrNotFound {
-		return nil, err
+	iter := s.db.NewIterator(util.BytesPrefix(append(symmetricKeyKeyPrefix, pk...)), nil)
+	for iter.Next() {
+		key := iter.Key()[len(symmetricKeyKeyPrefix)+len(pk):]
+		ephemeralKey, err := crypto.DecompressPubkey(key)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		value := iter.Value()
+		iter.Release()
+		return value, ephemeralKey, nil
 	}
+	return nil, nil, nil
+}
 
-	if byteBundle == nil {
-		return nil, nil
-	}
+func (s *PersistenceService) GetSymmetricKey(identityKey *ecdsa.PublicKey, ephemeralKey *ecdsa.PublicKey) ([]byte, error) {
+	pkBytes := crypto.CompressPubkey(identityKey)
+	ekBytes := crypto.CompressPubkey(ephemeralKey)
 
-	s.log.Info("unmarshalling bytebundle")
-	bundle := &Bundle{}
-	err = proto.Unmarshal(byteBundle, bundle)
-	if err != nil {
-		return nil, err
-	}
+	return s.db.Get(symmetricKeyKey(append(pkBytes, ekBytes...)), nil)
+}
 
-	return bundle, nil
+func (s *PersistenceService) AddSymmetricKey(identityKey *ecdsa.PublicKey, ephemeralKey *ecdsa.PublicKey, key []byte) error {
+	pkBytes := crypto.CompressPubkey(identityKey)
+
+	ekBytes := crypto.CompressPubkey(ephemeralKey)
+
+	return s.db.Put(symmetricKeyKey(append(pkBytes, ekBytes...)), key, nil)
 }
