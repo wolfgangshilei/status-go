@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 )
@@ -19,69 +18,6 @@ func NewProtocolService(encryption *EncryptionService) *ProtocolService {
 		log:        log.New("package", "status-go/services/sshext.chat"),
 		encryption: encryption,
 	}
-}
-
-func buildDirectMessageProtocol(e *EncryptionResponse) *DirectMessageProtocol {
-	ephemeralKey := crypto.CompressPubkey(e.EphemeralKey)
-	message := &DirectMessageProtocol{
-		Payload: e.EncryptedPayload,
-	}
-	switch e.EncryptionType {
-	case EncryptionTypeDH:
-		message.EphemeralKey = &DirectMessageProtocol_DhKey{
-			ephemeralKey,
-		}
-	case EncryptionTypeX3DH:
-		message.EphemeralKey = &DirectMessageProtocol_BundleKey{
-			ephemeralKey,
-		}
-		message.BundleId = e.BundleID
-	case EncryptionTypeSym:
-		message.EphemeralKey = &DirectMessageProtocol_SymKey{
-			ephemeralKey,
-		}
-
-	}
-
-	return message
-}
-
-func (p *ProtocolService) decryptIncomingPayload(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, msg *DirectMessageProtocol) ([]byte, error) {
-	payload := msg.GetPayload()
-	// Try Sym Key
-	symKeyID := msg.GetSymKey()
-	if symKeyID != nil {
-		decompressedKey, err := crypto.DecompressPubkey(symKeyID)
-		if err != nil {
-			return nil, err
-		}
-		return p.encryption.DecryptSymmetricPayload(theirIdentityKey, decompressedKey, payload)
-	}
-
-	// Try X3DH
-	x3dhKey := msg.GetBundleKey()
-	bundleID := msg.GetBundleId()
-	if x3dhKey != nil {
-		decompressedKey, err := crypto.DecompressPubkey(x3dhKey)
-		if err != nil {
-			return nil, err
-		}
-		return p.encryption.DecryptWithX3DH(myIdentityKey, theirIdentityKey, decompressedKey, bundleID, payload)
-
-	}
-
-	// Try DH
-	dhKey := msg.GetDhKey()
-	if dhKey != nil {
-		decompressedKey, err := crypto.DecompressPubkey(dhKey)
-		if err != nil {
-			return nil, err
-		}
-		return p.encryption.DecryptWithDH(myIdentityKey, decompressedKey, payload)
-
-	}
-
-	return nil, errors.New("No key specified")
 }
 
 func (p *ProtocolService) addBundleAndMarshal(myIdentityKey *ecdsa.PrivateKey, msg *ProtocolMessage) ([]byte, error) {
@@ -127,9 +63,7 @@ func (p *ProtocolService) BuildDirectMessage(myIdentityKey *ecdsa.PrivateKey, th
 
 	// Build message
 	protocolMessage := &ProtocolMessage{
-		MessageType: &ProtocolMessage_DirectMessage{
-			DirectMessage: buildDirectMessageProtocol(encryptionResponse),
-		},
+		MessageType: &ProtocolMessage_DirectMessage{encryptionResponse},
 	}
 
 	return p.addBundleAndMarshal(myIdentityKey, protocolMessage)
@@ -167,7 +101,7 @@ func (p *ProtocolService) HandleMessage(myIdentityKey *ecdsa.PrivateKey, theirPu
 	// Decrypt message
 	directMessage := protocolMessage.GetDirectMessage()
 	if directMessage != nil {
-		return p.decryptIncomingPayload(myIdentityKey, theirPublicKey, directMessage)
+		return p.encryption.DecryptPayload(myIdentityKey, theirPublicKey, directMessage)
 	}
 
 	// Return error

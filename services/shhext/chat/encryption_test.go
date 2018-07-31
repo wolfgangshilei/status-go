@@ -59,16 +59,15 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadNoBundle() {
 	encryptionResponse1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
 	s.NoError(err)
 
-	cyphertext1 := encryptionResponse1.EncryptedPayload
-	ephemeralKey1 := encryptionResponse1.EphemeralKey
+	cyphertext1 := encryptionResponse1.Payload
+	ephemeralKey1 := encryptionResponse1.GetX3DHHeader().GetDhKey()
 
 	s.NotNil(ephemeralKey1, "It generates an ephemeral key for DH exchange")
 	s.NotNil(cyphertext1, "It generates an encrypted payload")
 	s.NotEqualf(cyphertext1, cleartext, "It encrypts the payload correctly")
-	s.Equalf(encryptionResponse1.EncryptionType, EncryptionTypeDH, "It sets the encryption type to DH")
 
 	// On the receiver side, we should be able to decrypt using our private key and the ephemeral just sent
-	decryptedPayload1, err := s.bob.DecryptWithDH(bobKey, ephemeralKey1, cyphertext1)
+	decryptedPayload1, err := s.bob.DecryptPayload(bobKey, &aliceKey.PublicKey, encryptionResponse1)
 	s.NoError(err)
 	s.Equalf(cleartext, decryptedPayload1, "It correctly decrypts the payload using DH")
 
@@ -76,14 +75,13 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadNoBundle() {
 	encryptionResponse2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
 	s.NoError(err)
 
-	cyphertext2 := encryptionResponse2.EncryptedPayload
-	ephemeralKey2 := encryptionResponse2.EphemeralKey
+	cyphertext2 := encryptionResponse2.GetPayload()
+	ephemeralKey2 := encryptionResponse2.GetX3DHHeader().GetDhKey()
 
 	s.NotEqual(cyphertext1, cyphertext2, "It does not re-use the symmetric key")
 	s.NotEqual(ephemeralKey1, ephemeralKey2, "It does not re-use the ephemeral key")
-	s.Equalf(EncryptionTypeDH, encryptionResponse2.EncryptionType, "It sets the encryption type to DH")
 
-	decryptedPayload2, err := s.bob.DecryptWithDH(bobKey, ephemeralKey2, cyphertext2)
+	decryptedPayload2, err := s.bob.DecryptPayload(bobKey, &aliceKey.PublicKey, encryptionResponse2)
 	s.NoError(err)
 
 	s.Equalf(cleartext, decryptedPayload2, "It correctly decrypts the payload using DH")
@@ -114,21 +112,20 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	encryptionResponse1, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
 	s.NoError(err)
 
-	cyphertext1 := encryptionResponse1.EncryptedPayload
-	ephemeralKey1 := encryptionResponse1.EphemeralKey
+	cyphertext1 := encryptionResponse1.GetPayload()
+	ephemeralKey1 := encryptionResponse1.GetX3DHHeader().GetBundleKey()
 
 	s.NoError(err)
 	s.NotNil(cyphertext1, "It generates an encrypted payload")
 	s.NotEqualf(cyphertext1, cleartext, "It encrypts the payload correctly")
 	s.NotNil(ephemeralKey1, "It generates an ephemeral key")
-	s.Equalf(encryptionResponse1.EncryptionType, EncryptionTypeX3DH, "It sets the encryption type to X3DH")
 
 	// Bob is able to decrypt it using the bundle
 	bundleID := bobBundle2.GetSignedPreKey()
 
-	s.Equalf(encryptionResponse1.BundleID, bundleID, "It sets the bundle id")
+	s.Equalf(encryptionResponse1.GetX3DHHeader().GetBundleId(), bundleID, "It sets the bundle id")
 
-	decryptedPayload1, err := s.bob.DecryptWithX3DH(bobKey, &aliceKey.PublicKey, ephemeralKey1, bundleID, cyphertext1)
+	decryptedPayload1, err := s.bob.DecryptPayload(bobKey, &aliceKey.PublicKey, encryptionResponse1)
 	s.NoError(err)
 	s.Equalf(cleartext, decryptedPayload1, "It correctly decrypts the payload using X3DH")
 
@@ -136,8 +133,8 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	encryptionResponse2, err := s.alice.EncryptPayload(&bobKey.PublicKey, aliceKey, cleartext)
 	s.NoError(err)
 
-	cyphertext2 := encryptionResponse2.EncryptedPayload
-	ephemeralKey2 := encryptionResponse2.EphemeralKey
+	cyphertext2 := encryptionResponse2.GetPayload()
+	ephemeralKey2 := encryptionResponse2.GetX3DHHeader().GetSymKey()
 
 	s.NoError(err)
 	s.NotNil(cyphertext2, "It generates an encrypted payload")
@@ -145,7 +142,7 @@ func (s *EncryptionServiceTestSuite) TestEncryptPayloadBundle() {
 	s.Equal(ephemeralKey1, ephemeralKey2, "It returns the same ephemeral key")
 
 	// Bob this time should be able to decrypt it with a symmetric key
-	decryptedPayload2, err := s.bob.DecryptSymmetricPayload(&aliceKey.PublicKey, ephemeralKey2, cyphertext2)
+	decryptedPayload2, err := s.bob.DecryptPayload(bobKey, &aliceKey.PublicKey, encryptionResponse2)
 	s.NoError(err)
 	s.Equalf(cleartext, decryptedPayload2, "It correctly decrypts the payload using a symmetric key")
 }

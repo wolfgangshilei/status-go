@@ -80,8 +80,6 @@ func (s *ProtocolServiceTestSuite) TestBuildDirectMessage() {
 	s.NotNilf(encryptedPayload, "It sets the payload of the message")
 
 	s.NotEqualf(payload, encryptedPayload, "It encrypts the payload")
-
-	s.NotNilf(directMessage.GetDhKey(), "It sets the encryption key used for dh")
 }
 
 func (s *ProtocolServiceTestSuite) TestBuildAndReadDirectMessage() {

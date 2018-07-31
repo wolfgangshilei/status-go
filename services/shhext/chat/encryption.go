@@ -161,7 +161,69 @@ func (s *EncryptionService) ProcessPublicBundle(b *Bundle) error {
 	return s.persistence.AddPublicBundle(b)
 }
 
-func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey, payload []byte) (*EncryptionResponse, error) {
+func buildX3DHHeader(e *EncryptionResponse) *X3DHHeader {
+	ephemeralKey := ecrypto.CompressPubkey(e.EphemeralKey)
+	message := &X3DHHeader{}
+	switch e.EncryptionType {
+	case EncryptionTypeDH:
+		message.EphemeralKey = &X3DHHeader_DhKey{
+			ephemeralKey,
+		}
+	case EncryptionTypeX3DH:
+		message.EphemeralKey = &X3DHHeader_BundleKey{
+			ephemeralKey,
+		}
+		message.BundleId = e.BundleID
+	case EncryptionTypeSym:
+		message.EphemeralKey = &X3DHHeader_SymKey{
+			ephemeralKey,
+		}
+
+	}
+
+	return message
+}
+
+func (p *EncryptionService) DecryptPayload(myIdentityKey *ecdsa.PrivateKey, theirIdentityKey *ecdsa.PublicKey, msg *DirectMessageProtocol) ([]byte, error) {
+	payload := msg.GetPayload()
+	header := msg.GetX3DHHeader()
+	// Try Sym Key
+	symKeyID := header.GetSymKey()
+	if symKeyID != nil {
+		decompressedKey, err := ecrypto.DecompressPubkey(symKeyID)
+		if err != nil {
+			return nil, err
+		}
+		return p.DecryptSymmetricPayload(theirIdentityKey, decompressedKey, payload)
+	}
+
+	// Try X3DH
+	x3dhKey := header.GetBundleKey()
+	bundleID := header.GetBundleId()
+	if x3dhKey != nil {
+		decompressedKey, err := ecrypto.DecompressPubkey(x3dhKey)
+		if err != nil {
+			return nil, err
+		}
+		return p.DecryptWithX3DH(myIdentityKey, theirIdentityKey, decompressedKey, bundleID, payload)
+
+	}
+
+	// Try DH
+	dhKey := header.GetDhKey()
+	if dhKey != nil {
+		decompressedKey, err := ecrypto.DecompressPubkey(dhKey)
+		if err != nil {
+			return nil, err
+		}
+		return p.DecryptWithDH(myIdentityKey, decompressedKey, payload)
+
+	}
+
+	return nil, errors.New("No key specified")
+}
+
+func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, myIdentityKey *ecdsa.PrivateKey, payload []byte) (*DirectMessageProtocol, error) {
 	var symmetricKey []byte
 	// The ephemeral key used to encrypt the payload
 	var ourEphemeralKey *ecdsa.PublicKey
@@ -214,10 +276,17 @@ func (s *EncryptionService) EncryptPayload(theirIdentityKey *ecdsa.PublicKey, my
 		return nil, err
 	}
 
-	return &EncryptionResponse{
+	encryptionResponse := &EncryptionResponse{
 		EncryptedPayload: encryptedPayload,
 		EphemeralKey:     ourEphemeralKey,
 		EncryptionType:   encryptionType,
 		BundleID:         bundleID,
+	}
+
+	return &DirectMessageProtocol{
+		Encryption: &DirectMessageProtocol_X3DHHeader{
+			buildX3DHHeader(encryptionResponse),
+		},
+		Payload: encryptedPayload,
 	}, nil
 }

@@ -13,7 +13,13 @@ message BundleContainer {
   bytes private_signed_pre_key = 2;
 }
 
-message DirectMessageProtocol {
+message DRHeader {
+  bytes key = 1;
+  uint32 n = 2;
+  uint32 pn = 3;
+}
+
+message X3DHHeader {
   // Which ephemeral key has been used
   oneof ephemeral_key {
     bytes bundle_key = 1;
@@ -22,9 +28,14 @@ message DirectMessageProtocol {
   }
   // The bundle used in case of x3dh
   bytes bundle_id = 4;
+}
 
-  // The encrypted payload
-  bytes payload = 5;
+message DirectMessageProtocol {
+  oneof encryption {
+    X3DHHeader X3DH_header = 1;
+    DRHeader DR_header = 2;
+  }
+  bytes payload = 3;
 }
 
 message ProtocolMessage {
@@ -39,5 +50,3 @@ message ProtocolMessage {
     bytes public_message = 102;
   }
 }
-
-
