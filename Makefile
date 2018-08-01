@@ -237,6 +237,7 @@ vendor-check: ##@dependencies Require all new patches and disallow other changes
 	./_assets/ci/isolate-vendor-check.sh
 
 dep-ensure: ##@dependencies Dep ensure and apply all patches
+	rm -Rdf .vendor-new || 0 # to avoid leftovers from the previously failed builds on CI
 	@dep ensure
 	./_assets/patches/patcher
 
